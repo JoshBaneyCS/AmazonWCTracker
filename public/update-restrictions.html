@@ -7,31 +7,17 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <!-- Header with logo + nav -->
-  <header>
-    <img src="/images/logo.png" alt="Company Logo" class="logo">
-    <nav>
-      <a href="/active-accommodations.html">Active Accommodations</a>
-      <a href="/update-restrictions.html">Update Restrictions</a>
-    </nav>
-  </header>
+<header class="main-header">
+  <img src="/images/logo.png" alt="Company Logo" class="logo">
+  <nav>
+    <a href="/active-accommodations.html">Active Accommodations</a>
+    <a href="/update-restrictions.html">Update Restrictions</a>
+  </nav>
+</header>
 
+<div class="page-container">
   <h1>Update Restrictions</h1>
 
-  <!-- Site selection is always needed -->
-  <p>
-    <label for="siteSelect"><strong>Site:</strong></label>
-    <select id="siteSelect" name="site">
-      <option value="">--Select--</option>
-      <option value="BWI2">BWI2</option>
-      <option value="DCA1">DCA1</option>
-      <option value="AKC1">AKC1</option>
-      <option value="ACY1">ACY1</option>
-      <option value="MTN1">MTN1</option>
-    </select>
-  </p>
-
-  <!-- Radio: Is this a new accommodations request? -->
   <p><strong>Is this a new accommodations request?</strong></p>
   <label>
     <input type="radio" name="isNew" id="isNewYes" value="yes" checked>
@@ -42,7 +28,6 @@
     No
   </label>
 
-  <!-- If "No", user picks existing claim from a dropdown -->
   <div id="existingClaimSection" class="hidden">
     <label for="existingClaim"><strong>Select Existing Claim:</strong></label>
     <select id="existingClaim">
@@ -50,41 +35,31 @@
     </select>
   </div>
 
-  <!-- The main form to gather data -->
   <form id="updateForm">
-    <!-- Fields that only show up if "Yes" is selected -->
+    <!-- Only for new requests -->
     <div id="newOnlyFields">
       <p><strong>Associate Name:</strong>
-        <input type="text" name="associateName">
+        <input type="text" name="associateName" class="form-input">
       </p>
       <p><strong>Associate Login:</strong>
-        <input type="text" name="associateLogin">
+        <input type="text" name="associateLogin" class="form-input">
       </p>
       <p><strong>Manager Login:</strong>
-        <input type="text" name="managerLogin">
+        <input type="text" name="managerLogin" class="form-input">
       </p>
       <p><strong>Associate's Home Path:</strong>
-        <input type="text" name="associateHomePath">
+        <input type="text" name="associateHomePath" class="form-input">
       </p>
       <p><strong>Shift Pattern:</strong>
-        <select name="shiftPattern">
-          <option value="">--Select--</option>
-          <option value="DA5-1830">DA5-1830</option>
-          <option value="DB6-1900">DB6-1900</option>
-          <option value="DC7-0700">DC7-0700</option>
-          <option value="NA5-1830">NA5-1830</option>
-          <option value="RTN3-0730">RTN3-0730</option>
-          <option value="FLEXRT">FLEXRT</option>
-        </select>
+        <input type="text" name="shiftPattern" class="form-input">
       </p>
       <p><strong>Claim Number:</strong>
-        <input type="text" name="claimNumber">
+        <input type="text" name="claimNumber" class="form-input">
       </p>
     </div>
 
-    <!-- Fields that show for BOTH new and existing requests -->
     <p><strong>Requesting Job Path:</strong>
-      <select name="requestingJobPath">
+      <select name="requestingJobPath" class="form-input">
         <option value="">--Select--</option>
         <option value="Asset tagging">Asset tagging</option>
         <option value="Seated PA role">Seated PA role</option>
@@ -101,155 +76,134 @@
         <option value="Pick">Pick</option>
         <option value="OB Problem Solve">OB Problem Solve</option>
         <option value="Pending updated restrictions">Pending updated restrictions</option>
+        <!-- add more as needed -->
       </select>
     </p>
 
     <p><strong>Requestor's Login:</strong>
-      <input type="text" name="requestorLogin">
+      <input type="text" name="requestorLogin" class="form-input">
     </p>
-
     <p><strong>Restriction's Start Date:</strong>
-      <input type="date" name="startDate">
+      <input type="date" name="startDate" class="form-input">
     </p>
     <p><strong>Restriction's End Date:</strong>
-      <input type="date" name="endDate">
+      <input type="date" name="endDate" class="form-input">
+    </p>
+    <p><strong>AA's Restrictions (not saved in DB, only Slack):</strong>
+      <textarea name="aaRestrictions" class="form-textarea"></textarea>
     </p>
 
-    <p><strong>AA's Restrictions (not saved to DB, only Slack):</strong>
-      <textarea name="aaRestrictions"></textarea>
-    </p>
-
-    <button type="submit">Save and send Slack message</button>
+    <button type="submit" class="big-button">Save and send Slack message</button>
   </form>
+</div>
 
-  <script>
-    const isNewYes = document.getElementById("isNewYes");
-    const isNewNo = document.getElementById("isNewNo");
-    const existingClaimSection = document.getElementById("existingClaimSection");
-    const existingClaimSelect = document.getElementById("existingClaim");
-    const newOnlyFields = document.getElementById("newOnlyFields");
-    const siteSelect = document.getElementById("siteSelect");
-    const form = document.getElementById("updateForm");
+<script>
+  const isNewYes = document.getElementById("isNewYes");
+  const isNewNo = document.getElementById("isNewNo");
+  const existingClaimSection = document.getElementById("existingClaimSection");
+  const existingClaimSelect = document.getElementById("existingClaim");
+  const newOnlyFields = document.getElementById("newOnlyFields");
+  const form = document.getElementById("updateForm");
 
-    // Toggles which sections appear based on radio selection
-    function toggleFields() {
-      if (isNewYes.checked) {
-        // Show newOnlyFields, hide existingClaimSection
-        newOnlyFields.classList.remove("hidden");
-        existingClaimSection.classList.add("hidden");
-      } else {
-        // Show existingClaimSection, hide newOnlyFields
-        newOnlyFields.classList.add("hidden");
-        existingClaimSection.classList.remove("hidden");
-      }
+  // Toggle which fields are shown
+  function toggleFields() {
+    if (isNewYes.checked) {
+      newOnlyFields.classList.remove("hidden");
+      existingClaimSection.classList.add("hidden");
+    } else {
+      newOnlyFields.classList.add("hidden");
+      existingClaimSection.classList.remove("hidden");
+      loadExistingClaims();
     }
+  }
 
-    // Initial check on page load
-    toggleFields();
+  isNewYes.addEventListener("change", toggleFields);
+  isNewNo.addEventListener("change", toggleFields);
+  toggleFields(); // initial
 
-    // Whenever user changes the radio buttons
-    isNewYes.addEventListener("change", toggleFields);
-    isNewNo.addEventListener("change", toggleFields);
-
-    // If site changes and user selected "No", we load existing claims
-    siteSelect.addEventListener("change", async () => {
-      if (!isNewNo.checked) return;
-      existingClaimSelect.innerHTML = `<option value="">--Select--</option>`;
-
-      if (!siteSelect.value) return;
-      let resp = await fetch(`/api/existingClaims?site=${siteSelect.value}`);
-      let data = await resp.json();
-      data.forEach(item => {
-        // item = { id, claimNumber, associateLogin }
-        const opt = document.createElement("option");
-        opt.value = item.id; // record ID in DB
-        opt.textContent = `${item.claimNumber} (${item.associateLogin})`;
-        existingClaimSelect.appendChild(opt);
-      });
+  // Load existing accommodations for selection
+  async function loadExistingClaims() {
+    existingClaimSelect.innerHTML = `<option value="">--Select--</option>`;
+    let res = await fetch("/api/accommodations");
+    let data = await res.json();
+    data.forEach(item => {
+      let opt = document.createElement("option");
+      opt.value = item.id;
+      opt.textContent = `${item.claimNumber || "???"} (${item.associateLogin || "???"})`;
+      existingClaimSelect.appendChild(opt);
     });
+  }
 
-    // On form submit
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
+  // When user picks an existing record, fetch it and fill the form
+  existingClaimSelect.addEventListener("change", async () => {
+    let val = existingClaimSelect.value;
+    if (!val) return;
+    let res = await fetch(`/api/accommodations/${val}`);
+    if (!res.ok) {
+      alert("Could not fetch existing record.");
+      return;
+    }
+    let record = await res.json();
+    // Fill form fields
+    form.associateName.value = record.associateName || "";
+    form.associateLogin.value = record.associateLogin || "";
+    form.managerLogin.value = record.managerLogin || "";
+    form.associateHomePath.value = record.associateHomePath || "";
+    form.shiftPattern.value = record.shiftPattern || "";
+    form.claimNumber.value = record.claimNumber || "";
+    form.requestingJobPath.value = record.requestingJobPath || "";
+    form.requestorLogin.value = record.requestorLogin || "";
+    form.startDate.value = record.startDate || "";
+    form.endDate.value = record.endDate || "";
+  });
 
-      // Basic validations
-      let site = siteSelect.value;
-      let isNewValue = isNewYes.checked ? "yes" : "no";
-      let requestingJobPath = form.requestingJobPath.value.trim();
-      let requestorLogin = form.requestorLogin.value.trim();
-      let startDate = form.startDate.value;
-      let endDate = form.endDate.value;
-      let aaRestrictions = form.aaRestrictions.value;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    let isNewValue = isNewYes.checked ? "yes" : "no";
 
-      if (!site || !requestingJobPath || !requestorLogin || !startDate || !endDate) {
-        alert("Please fill out Site, Job Path, Requestor's Login, Start/End Date.");
+    let body = {
+      isNew: isNewValue,
+      requestingJobPath: form.requestingJobPath.value.trim(),
+      requestorLogin: form.requestorLogin.value.trim(),
+      startDate: form.startDate.value,
+      endDate: form.endDate.value,
+      aaRestrictions: form.aaRestrictions.value
+    };
+
+    if (isNewValue === "yes") {
+      body.associateName = form.associateName.value.trim();
+      body.associateLogin = form.associateLogin.value.trim();
+      body.managerLogin = form.managerLogin.value.trim();
+      body.associateHomePath = form.associateHomePath.value.trim();
+      body.shiftPattern = form.shiftPattern.value.trim();
+      body.claimNumber = form.claimNumber.value.trim();
+    } else {
+      // existing
+      if (!existingClaimSelect.value) {
+        alert("Please select an existing record if 'No' is chosen.");
         return;
       }
+      body.existingRecordId = existingClaimSelect.value;
+    }
 
-      if (isNewValue === "yes") {
-        let associateName = form.associateName.value.trim();
-        let associateLogin = form.associateLogin.value.trim();
-        let managerLogin = form.managerLogin.value.trim();
-        let associateHomePath = form.associateHomePath.value.trim();
-        let shiftPattern = form.shiftPattern.value;
-        let claimNumber = form.claimNumber.value.trim();
-
-        if (!associateName || !associateLogin || !managerLogin || !associateHomePath || !shiftPattern || !claimNumber) {
-          alert("Please fill out all fields for new accommodations request (name, login, manager, home path, shift pattern, claim #).");
-          return;
-        }
+    try {
+      let response = await fetch("/api/restrictions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      let result = await response.json();
+      if (response.ok) {
+        alert(result.message || "Saved and Slack message sent!");
+        form.reset();
+        toggleFields();
       } else {
-        // "No" => must select an existing claim
-        if (!existingClaimSelect.value) {
-          alert("Please select an existing claim if 'No' is chosen.");
-          return;
-        }
+        alert("Error: " + (result.error || "Unknown"));
       }
-
-      // Build request body
-      let body = {
-        isNew: isNewValue,
-        site,
-        requestingJobPath,
-        requestorLogin,
-        startDate,
-        endDate,
-        aaRestrictions
-      };
-
-      if (isNewValue === "yes") {
-        // Collect new-only fields
-        body.associateName = form.associateName.value.trim();
-        body.associateLogin = form.associateLogin.value.trim();
-        body.managerLogin = form.managerLogin.value.trim();
-        body.associateHomePath = form.associateHomePath.value.trim();
-        body.shiftPattern = form.shiftPattern.value;
-        body.claimNumber = form.claimNumber.value.trim();
-      } else {
-        // existing
-        body.existingRecordId = existingClaimSelect.value;
-      }
-
-      // Send to /api/restrictions
-      try {
-        let response = await fetch("/api/restrictions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
-        let result = await response.json();
-        if (response.ok) {
-          alert(result.message || "Saved and Slack notified!");
-          // Reset form or optionally leave data for next entry
-          form.reset();
-          toggleFields(); // ensures correct sections are shown/hidden
-        } else {
-          alert("Error: " + (result.error || "Unknown error"));
-        }
-      } catch (err) {
-        alert("Fetch error: " + err.message);
-      }
-    });
-  </script>
+    } catch (err) {
+      alert("Fetch error: " + err.message);
+    }
+  });
+</script>
 </body>
 </html>
