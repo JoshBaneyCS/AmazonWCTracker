@@ -1,5 +1,7 @@
 # AmazonWCtracker
 
+## SEE Branch 0.1.2 for newest version of program. 
+
 A Node.js (Express) application to manage accommodations requests, track seated vs. non-seated TLD roles, integrate with Slack for notifications, and display a spreadsheet-like seat count for each shift.
 
 ---
