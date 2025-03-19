@@ -1,0 +1,89 @@
+/* style.css */
+
+/* Basic reset or global styling */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  
+  body {
+    font-family: Arial, sans-serif;
+    padding: 1rem;
+    background-color: #f8f8f8;
+  }
+  
+  header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    background-color: #004f9f;
+    color: white;
+    padding: 0.5rem 1rem;
+  }
+  
+  header img.logo {
+    max-height: 50px;
+    vertical-align: middle;
+  }
+  
+  header nav {
+    margin-left: auto; /* push nav to right if desired, or remove for left alignment */
+  }
+  
+  header nav a {
+    color: white;
+    margin-left: 20px;
+    text-decoration: none;
+    font-weight: bold;
+  }
+  
+  header nav a:hover {
+    text-decoration: underline;
+  }
+  
+  /* For sections or forms */
+  form {
+    background-color: #fff;
+    padding: 1rem;
+    border: 1px solid #ccc;
+    margin-top: 1rem;
+    border-radius: 5px;
+  }
+  
+  /* Table styling */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+  }
+  
+  table th,
+  table td {
+    border: 1px solid #ccc;
+    padding: 0.5rem;
+  }
+  
+  table th {
+    background-color: #ddd;
+  }
+  
+  .hidden {
+    display: none;
+  }
+  
+  /* Buttons */
+  button {
+    background-color: #004f9f;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1rem;
+  }
+  
+  button:hover {
+    background-color: #003e7d;
+  }
+  
