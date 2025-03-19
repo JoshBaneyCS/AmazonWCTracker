@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Active Accommodations</title>
+  <!-- Link to favicon -->
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <!-- Link to our shared CSS -->
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- Header with logo and nav -->
+  <header>
+    <!-- Logo placeholder -->
+    <img src="/images/logo.png" alt="Company Logo" class="logo">
+    <nav>
+      <a href="/active-accommodations.html">Active Accommodations</a>
+      <a href="/update-restrictions.html">Update Restrictions</a>
+    </nav>
+  </header>
+
+  <h1>Active Accommodations</h1>
+  <p>
+    <!-- Example placeholder image or explanation; 
+         remove if not needed or replace with something relevant -->
+    <img src="/images/logo.png" alt="Placeholder Example" style="max-height:100px;">
+  </p>
+
+  <div style="margin: 1rem 0;">
+    <label>Filter by Site:</label>
+    <select id="siteFilter">
+      <option value="">All</option>
+      <option value="BWI2">BWI2</option>
+      <option value="DCA1">DCA1</option>
+      <option value="AKC1">AKC1</option>
+      <option value="ACY1">ACY1</option>
+      <option value="MTN1">MTN1</option>
+    </select>
+
+    <label style="margin-left: 1rem;">Filter by Shift Type:</label>
+    <select id="shiftFilter">
+      <option value="">All</option>
+      <option value="FHD">FHD</option>
+      <option value="FHN">FHN</option>
+      <option value="BHD">BHD</option>
+      <option value="BHN">BHN</option>
+      <option value="FLEX">FLEX</option>
+    </select>
+
+    <button id="filterBtn">Apply</button>
+  </div>
+
+  <table id="accommodationsTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Claim#</th>
+        <th>Associate Login</th>
+        <th>Associate Name</th>
+        <th>Site</th>
+        <th>Shift Pattern</th>
+        <th>Shift Type</th>
+        <th>Requesting Job Path</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function loadAccommodations() {
+      const siteVal = document.getElementById("siteFilter").value;
+      const shiftVal = document.getElementById("shiftFilter").value;
+      let query = [];
+      if (siteVal) query.push(`site=${siteVal}`);
+      if (shiftVal) query.push(`shift=${shiftVal}`);
+      const queryStr = query.length ? "?" + query.join("&") : "";
+
+      const res = await fetch("/api/accommodations" + queryStr);
+      const data = await res.json();
+      const tbody = document.querySelector("#accommodationsTable tbody");
+      tbody.innerHTML = "";
+
+      data.forEach(item => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${item.id}</td>
+          <td>${item.claimNumber}</td>
+          <td>${item.associateLogin}</td>
+          <td>${item.associateName}</td>
+          <td>${item.site}</td>
+          <td>${item.shiftPattern || ""}</td>
+          <td>${item.shiftType || ""}</td>
+          <td>
+            <select data-id="${item.id}" class="jobPathSelect">
+              ${makeJobPathOptions(item.requestingJobPath)}
+            </select>
+          </td>
+          <td>${item.status}</td>
+          <td>
+            <button class="saveBtn" data-id="${item.id}">Save</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function makeJobPathOptions(selected) {
+      let roles = [
+        "Asset tagging",
+        "Seated PA role",
+        "TLD SpartPac Resealing & Auditing",
+        "TLD Bin Straightening & pod banding",
+        "TLD Dock Temp Screener",
+        "IB Stow",
+        "IB Problem Solve",
+        "AA's Home Path",
+        "Provider Placed off Work",
+        "PLOA",
+        "DLS Referral",
+        "OB",
+        "Pick",
+        "OB Problem Solve",
+        "Pending updated restrictions"
+      ];
+      return roles.map(r => {
+        const sel = (r === selected) ? "selected" : "";
+        return `<option value="${r}" ${sel}>${r}</option>`;
+      }).join("");
+    }
+
+    document.getElementById("filterBtn").addEventListener("click", loadAccommodations);
+
+    // Listen for "Save" clicks in the table
+    document.getElementById("accommodationsTable").addEventListener("click", async (e) => {
+      if (e.target.classList.contains("saveBtn")) {
+        const id = e.target.dataset.id;
+        const row = e.target.closest("tr");
+        const select = row.querySelector(".jobPathSelect");
+        const newJobPath = select.value;
+
+        const res = await fetch(`/api/accommodations/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requestingJobPath: newJobPath })
+        });
+        const result = await res.json();
+        if (res.ok) {
+          alert("Job path updated.");
+          loadAccommodations();
+        } else {
+          alert("Error: " + (result.error || "Unknown") );
+        }
+      }
+    });
+
+    // Initial load
+    window.addEventListener("DOMContentLoaded", loadAccommodations);
+  </script>
+</body>
+</html>
