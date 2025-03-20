@@ -53,7 +53,6 @@
       <p><strong>Requestor's Login:</strong>
         <input type="text" name="requestorLogin" class="form-input">
       </p>
-
       <p><strong>Restriction's Start Date:</strong>
         <input type="date" name="startDate" class="form-input">
       </p>
@@ -107,16 +106,16 @@ async function loadExistingClaims() {
   });
 }
 
-// On existing claim change => fetch record => fill
 existingClaimSelect.addEventListener("change", async () => {
   let val = existingClaimSelect.value;
   if (!val) return;
   let res = await fetch(`/api/accommodations/${val}`);
   if (!res.ok) {
-    alert("Could not fetch existing record.");
+    alert("Could not fetch existing record");
     return;
   }
   let record = await res.json();
+  // fill form
   form.associateName.value = record.associateName || "";
   form.associateLogin.value = record.associateLogin || "";
   form.managerLogin.value = record.managerLogin || "";
@@ -161,11 +160,12 @@ form.addEventListener("submit", async (e) => {
     body.claimNumber = form.claimNumber.value.trim();
   } else {
     if (!existingClaimSelect.value) {
-      alert("Please select an existing record if 'No' is chosen.");
+      alert("Select an existing record if 'No' is chosen.");
       return;
     }
     body.existingRecordId = existingClaimSelect.value;
-    // If you want to allow updating these fields on existing:
+
+    // if you allow updating these fields even for existing
     body.associateName = form.associateName.value.trim();
     body.associateLogin = form.associateLogin.value.trim();
     body.managerLogin = form.managerLogin.value.trim();
@@ -186,7 +186,7 @@ form.addEventListener("submit", async (e) => {
       form.reset();
       toggleFields();
     } else {
-      alert("Error: " + (result.error || "Unknown"));
+      alert("Error: " + (result.error||"Unknown"));
     }
   } catch (err) {
     alert("Fetch error: " + err.message);
