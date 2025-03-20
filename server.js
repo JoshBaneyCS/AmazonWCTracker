@@ -6,12 +6,12 @@ const fetch = require("node-fetch");
 const mysql = require("mysql2/promise");
 const path = require("path");
 
-// For memory-based file upload + Slack
+// For file uploads in memory and sending to Slack
 const multer = require("multer");
 const FormData = require("form-data");
 const axios = require("axios");
 
-// Multer in-memory storage
+// Use memory storage so file is not saved on disk
 const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
@@ -37,14 +37,14 @@ const slackChannelId = process.env.SLACK_CHANNEL_ID || "";
 
 // SHIFT map
 const SHIFT_DAYS = {
-  FHD: ["Sunday","Monday","Tuesday","Wednesday"],
-  FHN: ["Sunday","Monday","Tuesday","Wednesday"], // nights
-  BHD: ["Wednesday","Thursday","Friday","Saturday"],
-  BHN: ["Wednesday","Thursday","Friday","Saturday"], // nights
-  FLEX: ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
+  FHD: ["Sunday", "Monday", "Tuesday", "Wednesday"],
+  FHN: ["Sunday", "Monday", "Tuesday", "Wednesday"], // nights
+  BHD: ["Wednesday", "Thursday", "Friday", "Saturday"],
+  BHN: ["Wednesday", "Thursday", "Friday", "Saturday"], // nights
+  FLEX: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 };
 
-/** parseShiftPattern => FHD, FHN, BHD, BHN, FLEX, unknown */
+/** parseShiftPattern => returns FHD, FHN, BHD, BHN, FLEX, unknown */
 function parseShiftPattern(s) {
   if (!s) return "unknown";
   const up = s.toUpperCase();
@@ -54,12 +54,12 @@ function parseShiftPattern(s) {
   if (up.includes("NA")) return "FHN";
   if (up.includes("NB")) return "BHN";
   if (up.includes("RTN")) return "BHN";
-  if (up.includes("RT"))  return "BHD";
-  if (up.includes("FLEX"))return "FLEX";
+  if (up.includes("RT")) return "BHD";
+  if (up.includes("FLEX")) return "FLEX";
   return "unknown";
 }
 
-// Raw data approach for Slack
+/** sendSlackMessage: sends raw data to Slack */
 async function sendSlackMessage({
   associateName,
   associateLogin,
@@ -76,7 +76,7 @@ async function sendSlackMessage({
     console.warn("No Slack webhook URL set. Not sending message.");
     return;
   }
-  // Just send raw data, Slack does final formatting
+
   const payload = {
     associateName,
     associateLogin,
@@ -96,7 +96,6 @@ async function sendSlackMessage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-
     if (!response.ok) {
       console.error("Slack responded with error:", await response.text());
     }
@@ -105,7 +104,7 @@ async function sendSlackMessage({
   }
 }
 
-/** GET /api/accommodations => Return all records */
+// GET all accommodations
 app.get("/api/accommodations", async (req, res) => {
   try {
     const conn = await mysql.createConnection(dbConfig);
@@ -117,7 +116,7 @@ app.get("/api/accommodations", async (req, res) => {
   }
 });
 
-/** GET /api/accommodations/:id => Return a single record */
+// GET single accommodation
 app.get("/api/accommodations/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -131,7 +130,7 @@ app.get("/api/accommodations/:id", async (req, res) => {
   }
 });
 
-/** DELETE /api/accommodations/:id */
+// DELETE accommodation
 app.delete("/api/accommodations/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -144,22 +143,18 @@ app.delete("/api/accommodations/:id", async (req, res) => {
   }
 });
 
-/** PATCH /api/accommodations/:id => update accommodationRole + status */
+// PATCH accommodation: update accommodationRole and status
 app.patch("/api/accommodations/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const accommodationRole = req.body.accommodationRole ?? "";
     const status = req.body.status ?? "Pending";
-
     const conn = await mysql.createConnection(dbConfig);
-    await conn.execute(`
-      UPDATE accommodations
-      SET accommodationRole = ?,
-          status = ?
-      WHERE id = ?
-    `, [accommodationRole, status, id]);
+    await conn.execute(
+      "UPDATE accommodations SET accommodationRole = ?, status = ? WHERE id = ?",
+      [accommodationRole, status, id]
+    );
     await conn.end();
-
     res.json({ message: "Accommodation updated." });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -167,14 +162,14 @@ app.patch("/api/accommodations/:id", async (req, res) => {
 });
 
 /**
- * GET /api/seatCounts => daily coverage + distinct counts
- * returns { dayGrid, distinctCounts }
+ * GET /api/seatCounts
+ * Returns:
+ *   { dayGrid, distinctCounts }
  */
 app.get("/api/seatCounts", async (req, res) => {
   try {
-    const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-    const shiftCodes = ["FHD","FHN","BHD","BHN","FLEX"];
-
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const shiftCodes = ["FHD", "FHN", "BHD", "BHN", "FLEX"];
     let dayGrid = {};
     days.forEach(d => {
       dayGrid[d] = {};
@@ -182,14 +177,12 @@ app.get("/api/seatCounts", async (req, res) => {
         dayGrid[d][sc] = 0;
       });
     });
-
     const conn = await mysql.createConnection(dbConfig);
-    // daily coverage
+    // Daily coverage count
     const [rows] = await conn.execute(`
       SELECT shiftPattern, shiftType
       FROM accommodations
-      WHERE status='Approved'
-        AND isSeated=1
+      WHERE status='Approved' AND isSeated=1
     `);
     rows.forEach(r => {
       let st = r.shiftType || parseShiftPattern(r.shiftPattern);
@@ -198,24 +191,18 @@ app.get("/api/seatCounts", async (req, res) => {
         dayGrid[day][st] += 1;
       });
     });
-
-    // distinct counts
+    // Distinct counts (how many rows per shift code)
     const [approvedRows] = await conn.execute(`
       SELECT shiftPattern, shiftType
       FROM accommodations
-      WHERE status='Approved'
-        AND isSeated=1
+      WHERE status='Approved' AND isSeated=1
     `);
     await conn.end();
-
-    let distinctCounts = { FHD:0, FHN:0, BHD:0, BHN:0, FLEX:0 };
+    let distinctCounts = { FHD: 0, FHN: 0, BHD: 0, BHN: 0, FLEX: 0 };
     approvedRows.forEach(r => {
       let st = r.shiftType || parseShiftPattern(r.shiftPattern);
-      if (distinctCounts[st] !== undefined) {
-        distinctCounts[st] += 1;
-      }
+      if (distinctCounts[st] !== undefined) distinctCounts[st] += 1;
     });
-
     res.json({ dayGrid, distinctCounts });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -223,13 +210,13 @@ app.get("/api/seatCounts", async (req, res) => {
 });
 
 /**
- * POST /api/restrictions => Insert or update. 
- * file upload + seat logic + Slack
- * We also check if the existing record actually exists if isNew="no"
+ * POST /api/restrictions
+ * Handles file upload (in memory) and then either inserts or updates an accommodation.
+ * Claim# must be unique: if isNew="yes" but an entry with the same Claim# exists, update that record.
  */
 app.post("/api/restrictions", upload.single("supportingDocument"), async (req, res) => {
   try {
-    // Provide default strings for each field
+    // Provide defaults
     const isNew = req.body.isNew ?? "yes";
     const associateName = req.body.associateName ?? "";
     const associateLogin = req.body.associateLogin ?? "";
@@ -251,57 +238,64 @@ app.post("/api/restrictions", upload.single("supportingDocument"), async (req, r
 
     const site = "BWI2";
     const status = "Pending";
-
     const conn = await mysql.createConnection(dbConfig);
     let newId;
 
-    // =========================
-    // Insert or Update
-    // =========================
+    // If isNew === "yes", check if the claim number already exists
     if (isNew === "yes") {
-      // Insert new
-      let shiftType = parseShiftPattern(shiftPattern);
-      let [ins] = await conn.execute(`
-        INSERT INTO accommodations
-          (claimNumber, associateLogin, associateName, managerLogin, associateHomePath,
-           shiftPattern, shiftType, site,
-           startDate, endDate, status,
-           accommodationRole, isSeated
-          )
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `, [
-        claimNumber, associateLogin, associateName, managerLogin, associateHomePath,
-        shiftPattern, shiftType, site,
-        startDate, endDate, status,
-        accommodationRole, isSeatedVal
-      ]);
-      newId = ins.insertId;
-
+      let [existing] = await conn.execute("SELECT * FROM accommodations WHERE claimNumber=?", [claimNumber]);
+      if (existing.length > 0) {
+        // If found, update the existing record
+        newId = existing[0].id;
+        await conn.execute(`
+          UPDATE accommodations
+          SET associateLogin = ?, associateName = ?, managerLogin = ?, associateHomePath = ?,
+              shiftPattern = ?, startDate = ?, endDate = ?, status = ?, site = ?,
+              accommodationRole = ?, isSeated = ?
+          WHERE id = ?
+        `, [
+          associateLogin, associateName, managerLogin, associateHomePath,
+          shiftPattern, startDate, endDate, status, site,
+          accommodationRole, isSeatedVal,
+          newId
+        ]);
+      } else {
+        // Insert new
+        let shiftType = parseShiftPattern(shiftPattern);
+        let [ins] = await conn.execute(`
+          INSERT INTO accommodations
+            (claimNumber, associateLogin, associateName, managerLogin, associateHomePath,
+             shiftPattern, shiftType, site,
+             startDate, endDate, status,
+             accommodationRole, isSeated)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        `, [
+          claimNumber, associateLogin, associateName, managerLogin, associateHomePath,
+          shiftPattern, shiftType, site,
+          startDate, endDate, status,
+          accommodationRole, isSeatedVal
+        ]);
+        newId = ins.insertId;
+      }
     } else {
-      // "no" => must update existing
-      // Check if row actually exists in DB
+      // isNew === "no": update existing record; check if it exists
       if (!existingRecordId) {
         await conn.end();
         return res.status(400).json({ error: "No existingRecordId provided." });
       }
-
       let [old] = await conn.execute("SELECT * FROM accommodations WHERE id=?", [existingRecordId]);
       if (!old.length) {
-        // record not found
         await conn.end();
         return res.status(400).json({ error: "No existing record found for the given ID." });
       }
-
-      // If record found, do the update
-      const oldPat = old[0].shiftPattern ?? "";
-      const shiftType = parseShiftPattern(oldPat);
-
+      let oldPat = old[0].shiftPattern ?? "";
+      let shiftType = parseShiftPattern(oldPat);
       await conn.execute(`
         UPDATE accommodations
-        SET claimNumber=?, associateLogin=?, associateName=?, managerLogin=?,
-            associateHomePath=?, startDate=?, endDate=?, status=?, site=?,
-            accommodationRole=?, isSeated=?
-        WHERE id=?
+        SET claimNumber = ?, associateLogin = ?, associateName = ?, managerLogin = ?,
+            associateHomePath = ?, startDate = ?, endDate = ?, status = ?, site = ?,
+            accommodationRole = ?, isSeated = ?
+        WHERE id = ?
       `, [
         claimNumber, associateLogin, associateName, managerLogin,
         associateHomePath, startDate, endDate, status, site,
@@ -311,9 +305,9 @@ app.post("/api/restrictions", upload.single("supportingDocument"), async (req, r
       newId = existingRecordId;
     }
 
-    // Slack: File upload
+    // Slack: File Upload
     if (!slackBotToken) {
-      console.warn("No Slack Bot Token. Skipping file upload to Slack.");
+      console.warn("No Slack Bot Token set (SLACK_BOT_TOKEN). Skipping file upload to Slack.");
     } else {
       try {
         const formData = new FormData();
@@ -336,11 +330,10 @@ app.post("/api/restrictions", upload.single("supportingDocument"), async (req, r
       }
     }
 
-    // seat counting for Slack message
+    // Seat counting for Slack message
     let [finalRow] = await conn.execute("SELECT * FROM accommodations WHERE id=?", [newId]);
     let rec = finalRow[0];
     const finalShiftType = parseShiftPattern(rec.shiftPattern);
-
     let [s1] = await conn.execute(`
       SELECT COUNT(*) as seatCount
       FROM accommodations
@@ -349,7 +342,6 @@ app.post("/api/restrictions", upload.single("supportingDocument"), async (req, r
         AND shiftType=?
     `, [finalShiftType]);
     let seatCount = s1[0].seatCount;
-
     let [s2] = await conn.execute(`
       SELECT COUNT(*) as totalSeated
       FROM accommodations
@@ -381,7 +373,6 @@ app.post("/api/restrictions", upload.single("supportingDocument"), async (req, r
   }
 });
 
-// Listen
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
