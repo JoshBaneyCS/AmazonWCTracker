@@ -213,7 +213,7 @@ app.get("/api/seatCounts", async (req, res) => {
     let distinctCounts = { FHD:0, FHN:0, BHD:0, BHN:0, FLEX:0 };
     approvedRows.forEach(r => {
       let st = r.shiftType || parseShiftPattern(r.shiftPattern);
-      if (distinctCounts[st] !== undefined) {
+      if (distinctCounts[st] !== null) {
         distinctCounts[st] += 1;
       }
     });
