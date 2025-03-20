@@ -3,207 +3,195 @@
 <head>
   <meta charset="UTF-8">
   <title>Update Restrictions</title>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header class="main-header">
-  <img src="/images/logo.png" alt="Company Logo" class="logo">
-  <nav>
-    <a href="/active-accommodations.html">Active Accommodations</a>
-    <a href="/update-restrictions.html">Update Restrictions</a>
-  </nav>
-</header>
+  <header class="main-header">
+    <img src="/images/logo.png" alt="Company Logo" class="logo">
+    <nav>
+      <a href="/active-accommodations.html">Active Accommodations</a>
+      <a href="/update-restrictions.html">Update Restrictions</a>
+    </nav>
+  </header>
 
-<div class="page-container">
-  <h1>Update Restrictions</h1>
+  <div class="page-container">
+    <h1>Update Restrictions</h1>
 
-  <p><strong>Is this a new accommodations request?</strong></p>
-  <label>
-    <input type="radio" name="isNew" id="isNewYes" value="yes" checked>
-    Yes
-  </label>
-  <label>
-    <input type="radio" name="isNew" id="isNewNo" value="no">
-    No
-  </label>
+    <p><strong>Is this a new accommodations request?</strong></p>
+    <label><input type="radio" name="isNew" id="isNewYes" value="yes" checked> Yes</label>
+    <label><input type="radio" name="isNew" id="isNewNo" value="no"> No</label>
 
-  <div id="existingClaimSection" class="hidden">
-    <label for="existingClaim"><strong>Select Existing Claim:</strong></label>
-    <select id="existingClaim">
-      <option value="">--Select--</option>
-    </select>
-  </div>
-
-  <form id="updateForm">
-    <!-- Only for new requests -->
-    <div id="newOnlyFields">
-      <p><strong>Associate Name:</strong>
-        <input type="text" name="associateName" class="form-input">
-      </p>
-      <p><strong>Associate Login:</strong>
-        <input type="text" name="associateLogin" class="form-input">
-      </p>
-      <p><strong>Manager Login:</strong>
-        <input type="text" name="managerLogin" class="form-input">
-      </p>
-      <p><strong>Associate's Home Path:</strong>
-        <input type="text" name="associateHomePath" class="form-input">
-      </p>
-      <p><strong>Shift Pattern:</strong>
-        <input type="text" name="shiftPattern" class="form-input">
-      </p>
-      <p><strong>Claim Number:</strong>
-        <input type="text" name="claimNumber" class="form-input">
-      </p>
+    <div id="existingClaimSection" class="hidden">
+      <label><strong>Select Existing Claim:</strong></label>
+      <select id="existingClaim">
+        <option value="">--Select--</option>
+      </select>
     </div>
 
-    <p><strong>Requesting Job Path:</strong>
-      <select name="requestingJobPath" class="form-input">
-        <option value="">--Select--</option>
-        <option value="Asset tagging">Asset tagging</option>
-        <option value="Seated PA role">Seated PA role</option>
-        <option value="TLD SpartPac Resealing & Auditing">TLD SpartPac Resealing & Auditing</option>
-        <option value="TLD Bin Straightening & pod banding">TLD Bin Straightening & pod banding</option>
-        <option value="TLD Dock Temp Screener">TLD Dock Temp Screener</option>
-        <option value="IB Stow">IB Stow</option>
-        <option value="IB Problem Solve">IB Problem Solve</option>
-        <option value="AA's Home Path">AA's Home Path</option>
-        <option value="Provider Placed off Work">Provider Placed off Work</option>
-        <option value="PLOA">PLOA</option>
-        <option value="DLS Referral">DLS Referral</option>
-        <option value="OB">OB</option>
-        <option value="Pick">Pick</option>
-        <option value="OB Problem Solve">OB Problem Solve</option>
-        <option value="Pending updated restrictions">Pending updated restrictions</option>
-        <!-- add more as needed -->
-      </select>
-    </p>
+    <form id="updateForm">
+      <div id="newOnlyFields">
+        <p><strong>Associate Name:</strong>
+          <input type="text" name="associateName" class="form-input">
+        </p>
+        <p><strong>Associate Login:</strong>
+          <input type="text" name="associateLogin" class="form-input">
+        </p>
+        <p><strong>Manager Login:</strong>
+          <input type="text" name="managerLogin" class="form-input">
+        </p>
+        <p><strong>Associate's Home Path:</strong>
+          <input type="text" name="associateHomePath" class="form-input">
+        </p>
+        <p><strong>Shift Pattern:</strong>
+          <input type="text" name="shiftPattern" class="form-input">
+        </p>
+        <p><strong>Claim Number:</strong>
+          <input type="text" name="claimNumber" class="form-input">
+        </p>
+      </div>
 
-    <p><strong>Requestor's Login:</strong>
-      <input type="text" name="requestorLogin" class="form-input">
-    </p>
-    <p><strong>Restriction's Start Date:</strong>
-      <input type="date" name="startDate" class="form-input">
-    </p>
-    <p><strong>Restriction's End Date:</strong>
-      <input type="date" name="endDate" class="form-input">
-    </p>
-    <p><strong>AA's Restrictions (not saved in DB, only Slack):</strong>
-      <textarea name="aaRestrictions" class="form-textarea"></textarea>
-    </p>
+      <p><strong>Requestor's Login:</strong>
+        <input type="text" name="requestorLogin" class="form-input">
+      </p>
 
-    <button type="submit" class="big-button">Save and send Slack message</button>
-  </form>
-</div>
+      <p><strong>Restriction's Start Date:</strong>
+        <input type="date" name="startDate" class="form-input">
+      </p>
+      <p><strong>Restriction's End Date:</strong>
+        <input type="date" name="endDate" class="form-input">
+      </p>
+      <p><strong>AA's Restrictions (not saved in DB, only Slack):</strong>
+        <textarea name="aaRestrictions" class="form-textarea"></textarea>
+      </p>
+
+      <p><strong>Accommodation Role:</strong>
+        <input type="text" name="accommodationRole" class="form-input">
+      </p>
+      <p><strong>Is this a seated accommodation?</strong><br>
+        <label><input type="radio" name="isSeated" value="yes"> Yes</label>
+        <label><input type="radio" name="isSeated" value="no" checked> No</label>
+      </p>
+
+      <button type="submit" class="big-button">Save and send Slack message</button>
+    </form>
+  </div>
 
 <script>
-  const isNewYes = document.getElementById("isNewYes");
-  const isNewNo = document.getElementById("isNewNo");
-  const existingClaimSection = document.getElementById("existingClaimSection");
-  const existingClaimSelect = document.getElementById("existingClaim");
-  const newOnlyFields = document.getElementById("newOnlyFields");
-  const form = document.getElementById("updateForm");
+const isNewYes = document.getElementById("isNewYes");
+const isNewNo = document.getElementById("isNewNo");
+const existingClaimSection = document.getElementById("existingClaimSection");
+const existingClaimSelect = document.getElementById("existingClaim");
+const newOnlyFields = document.getElementById("newOnlyFields");
+const form = document.getElementById("updateForm");
 
-  // Toggle which fields are shown
-  function toggleFields() {
-    if (isNewYes.checked) {
-      newOnlyFields.classList.remove("hidden");
-      existingClaimSection.classList.add("hidden");
-    } else {
-      newOnlyFields.classList.add("hidden");
-      existingClaimSection.classList.remove("hidden");
-      loadExistingClaims();
-    }
+function toggleFields() {
+  if (isNewYes.checked) {
+    newOnlyFields.classList.remove("hidden");
+    existingClaimSection.classList.add("hidden");
+  } else {
+    newOnlyFields.classList.add("hidden");
+    existingClaimSection.classList.remove("hidden");
+    loadExistingClaims();
   }
+}
 
-  isNewYes.addEventListener("change", toggleFields);
-  isNewNo.addEventListener("change", toggleFields);
-  toggleFields(); // initial
+async function loadExistingClaims() {
+  existingClaimSelect.innerHTML = `<option value="">--Select--</option>`;
+  let res = await fetch("/api/accommodations");
+  let data = await res.json();
+  data.forEach(item => {
+    let opt = document.createElement("option");
+    opt.value = item.id;
+    opt.textContent = `${item.claimNumber || "???"} (${item.associateLogin || "???"})`;
+    existingClaimSelect.appendChild(opt);
+  });
+}
 
-  // Load existing accommodations for selection
-  async function loadExistingClaims() {
-    existingClaimSelect.innerHTML = `<option value="">--Select--</option>`;
-    let res = await fetch("/api/accommodations");
-    let data = await res.json();
-    data.forEach(item => {
-      let opt = document.createElement("option");
-      opt.value = item.id;
-      opt.textContent = `${item.claimNumber || "???"} (${item.associateLogin || "???"})`;
-      existingClaimSelect.appendChild(opt);
-    });
+// On existing claim change => fetch record => fill
+existingClaimSelect.addEventListener("change", async () => {
+  let val = existingClaimSelect.value;
+  if (!val) return;
+  let res = await fetch(`/api/accommodations/${val}`);
+  if (!res.ok) {
+    alert("Could not fetch existing record.");
+    return;
   }
+  let record = await res.json();
+  form.associateName.value = record.associateName || "";
+  form.associateLogin.value = record.associateLogin || "";
+  form.managerLogin.value = record.managerLogin || "";
+  form.associateHomePath.value = record.associateHomePath || "";
+  form.shiftPattern.value = record.shiftPattern || "";
+  form.claimNumber.value = record.claimNumber || "";
+  form.requestorLogin.value = record.requestorLogin || "";
+  form.startDate.value = record.startDate || "";
+  form.endDate.value = record.endDate || "";
+  form.accommodationRole.value = record.accommodationRole || "";
+  if (record.isSeated === 1) {
+    document.querySelector('input[name="isSeated"][value="yes"]').checked = true;
+  } else {
+    document.querySelector('input[name="isSeated"][value="no"]').checked = true;
+  }
+});
 
-  // When user picks an existing record, fetch it and fill the form
-  existingClaimSelect.addEventListener("change", async () => {
-    let val = existingClaimSelect.value;
-    if (!val) return;
-    let res = await fetch(`/api/accommodations/${val}`);
-    if (!res.ok) {
-      alert("Could not fetch existing record.");
+isNewYes.addEventListener("change", toggleFields);
+isNewNo.addEventListener("change", toggleFields);
+toggleFields();
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  let isNewValue = isNewYes.checked ? "yes" : "no";
+
+  let body = {
+    isNew: isNewValue,
+    requestorLogin: form.requestorLogin.value.trim(),
+    startDate: form.startDate.value,
+    endDate: form.endDate.value,
+    aaRestrictions: form.aaRestrictions.value,
+    accommodationRole: form.accommodationRole.value.trim(),
+    isSeated: document.querySelector('input[name="isSeated"]:checked').value
+  };
+
+  if (isNewValue === "yes") {
+    body.associateName = form.associateName.value.trim();
+    body.associateLogin = form.associateLogin.value.trim();
+    body.managerLogin = form.managerLogin.value.trim();
+    body.associateHomePath = form.associateHomePath.value.trim();
+    body.shiftPattern = form.shiftPattern.value.trim();
+    body.claimNumber = form.claimNumber.value.trim();
+  } else {
+    if (!existingClaimSelect.value) {
+      alert("Please select an existing record if 'No' is chosen.");
       return;
     }
-    let record = await res.json();
-    // Fill form fields
-    form.associateName.value = record.associateName || "";
-    form.associateLogin.value = record.associateLogin || "";
-    form.managerLogin.value = record.managerLogin || "";
-    form.associateHomePath.value = record.associateHomePath || "";
-    form.shiftPattern.value = record.shiftPattern || "";
-    form.claimNumber.value = record.claimNumber || "";
-    form.requestingJobPath.value = record.requestingJobPath || "";
-    form.requestorLogin.value = record.requestorLogin || "";
-    form.startDate.value = record.startDate || "";
-    form.endDate.value = record.endDate || "";
-  });
+    body.existingRecordId = existingClaimSelect.value;
+    // If you want to allow updating these fields on existing:
+    body.associateName = form.associateName.value.trim();
+    body.associateLogin = form.associateLogin.value.trim();
+    body.managerLogin = form.managerLogin.value.trim();
+    body.associateHomePath = form.associateHomePath.value.trim();
+    body.shiftPattern = form.shiftPattern.value.trim();
+    body.claimNumber = form.claimNumber.value.trim();
+  }
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    let isNewValue = isNewYes.checked ? "yes" : "no";
-
-    let body = {
-      isNew: isNewValue,
-      requestingJobPath: form.requestingJobPath.value.trim(),
-      requestorLogin: form.requestorLogin.value.trim(),
-      startDate: form.startDate.value,
-      endDate: form.endDate.value,
-      aaRestrictions: form.aaRestrictions.value
-    };
-
-    if (isNewValue === "yes") {
-      body.associateName = form.associateName.value.trim();
-      body.associateLogin = form.associateLogin.value.trim();
-      body.managerLogin = form.managerLogin.value.trim();
-      body.associateHomePath = form.associateHomePath.value.trim();
-      body.shiftPattern = form.shiftPattern.value.trim();
-      body.claimNumber = form.claimNumber.value.trim();
+  try {
+    let response = await fetch("/api/restrictions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    let result = await response.json();
+    if (response.ok) {
+      alert(result.message || "Saved and Slack message sent!");
+      form.reset();
+      toggleFields();
     } else {
-      // existing
-      if (!existingClaimSelect.value) {
-        alert("Please select an existing record if 'No' is chosen.");
-        return;
-      }
-      body.existingRecordId = existingClaimSelect.value;
+      alert("Error: " + (result.error || "Unknown"));
     }
-
-    try {
-      let response = await fetch("/api/restrictions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      let result = await response.json();
-      if (response.ok) {
-        alert(result.message || "Saved and Slack message sent!");
-        form.reset();
-        toggleFields();
-      } else {
-        alert("Error: " + (result.error || "Unknown"));
-      }
-    } catch (err) {
-      alert("Fetch error: " + err.message);
-    }
-  });
+  } catch (err) {
+    alert("Fetch error: " + err.message);
+  }
+});
 </script>
 </body>
 </html>
