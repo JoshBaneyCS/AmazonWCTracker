@@ -57,34 +57,36 @@ async function sendSlackMessage({
   aaRestrictions,
   accommodationRole,
   requestorLogin,
-  shiftCount,    // e.g. "FHD"
+  shiftCount,
   seatedTotal
 }) {
   if (!slackWebhookUrl) {
     console.warn("No Slack webhook URL set. Not sending message.");
     return;
   }
-  let text =
-`We have received restrictions for ${associateName} (${associateLogin})
-@channel
 
-Home Path: ${homePath}
-Restrictions: ${aaRestrictions}
-Recommendation: ${accommodationRole}
-
-This is an automated message sent out by: ${requestorLogin}
-
-Current seated spots for ${shiftCount} :
-Total Seated accommodations: ${seatedTotal}`;
+  // Construct the correct payload
+  const payload = {
+    text: `We have received restrictions for *${associateName}* (*${associateLogin}*)\n
+    <!channel>\n
+    *Home Path:* ${homePath}\n
+    *Restrictions:* ${aaRestrictions}\n
+    *Recommendation:* ${accommodationRole}\n
+    \n
+    _This is an automated message sent by: ${requestorLogin}_\n
+    \n
+    *Current seated spots for ${shiftCount}:* ${seatedTotal}`
+  };
 
   try {
-    let resp = await fetch(slackWebhookUrl, {
+    const response = await fetch(slackWebhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
+      body: JSON.stringify(payload)
     });
-    if (!resp.ok) {
-      console.error("Slack responded with error:", await resp.text());
+
+    if (!response.ok) {
+      console.error("Slack responded with error:", await response.text());
     }
   } catch (err) {
     console.error("Error sending Slack message:", err);
