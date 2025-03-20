@@ -3,222 +3,179 @@
 <head>
   <meta charset="UTF-8">
   <title>Active Accommodations</title>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header class="main-header">
-  <img src="/images/logo.png" alt="Company Logo" class="logo">
-  <nav>
-    <a href="/active-accommodations.html">Active Accommodations</a>
-    <a href="/update-restrictions.html">Update Restrictions</a>
-  </nav>
-</header>
+  <header class="main-header">
+    <img src="/images/whs.jpg" alt="Company Logo" class="logo">
+    <nav>
+      <a href="/active-accommodations.html">Active Accommodations</a>
+      <a href="/update-restrictions.html">Update Restrictions</a>
+    </nav>
+  </header>
 
-<div class="page-container">
-  <h1>Active Accommodations</h1>
+  <div class="page-container">
+    <h1>Active Accommodations</h1>
 
-  <!-- SHIFT SPREADSHEET: days as columns, shift codes as rows -->
-  <h2>Seated Placements (Spreadsheet Layout)</h2>
-  <table id="shiftSpreadsheet">
-    <thead>
-    <tr>
-      <th>Shift / Day</th>
-      <th>Sunday</th>
-      <th>Monday</th>
-      <th>Tuesday</th>
-      <th>Wednesday</th>
-      <th>Thursday</th>
-      <th>Friday</th>
-      <th>Saturday</th>
-    </tr>
-    </thead>
-    <tbody>
-    <!-- We'll fill these rows via JavaScript based on seatCounts from /api/seatCounts -->
-    <tr data-shift="FHD">
-      <td>FHD</td>
-      <td class="seatCell" data-day="Sunday"></td>
-      <td class="seatCell" data-day="Monday"></td>
-      <td class="seatCell" data-day="Tuesday"></td>
-      <td class="seatCell" data-day="Wednesday"></td>
-      <td class="seatCell" data-day="Thursday"></td>
-      <td class="seatCell" data-day="Friday"></td>
-      <td class="seatCell" data-day="Saturday"></td>
-    </tr>
-    <tr data-shift="FHN">
-      <td>FHN</td>
-      <td class="seatCell" data-day="Sunday"></td>
-      <td class="seatCell" data-day="Monday"></td>
-      <td class="seatCell" data-day="Tuesday"></td>
-      <td class="seatCell" data-day="Wednesday"></td>
-      <td class="seatCell" data-day="Thursday"></td>
-      <td class="seatCell" data-day="Friday"></td>
-      <td class="seatCell" data-day="Saturday"></td>
-    </tr>
-    <tr data-shift="BHD">
-      <td>BHD</td>
-      <td class="seatCell" data-day="Sunday"></td>
-      <td class="seatCell" data-day="Monday"></td>
-      <td class="seatCell" data-day="Tuesday"></td>
-      <td class="seatCell" data-day="Wednesday"></td>
-      <td class="seatCell" data-day="Thursday"></td>
-      <td class="seatCell" data-day="Friday"></td>
-      <td class="seatCell" data-day="Saturday"></td>
-    </tr>
-    <tr data-shift="BHN">
-      <td>BHN</td>
-      <td class="seatCell" data-day="Sunday"></td>
-      <td class="seatCell" data-day="Monday"></td>
-      <td class="seatCell" data-day="Tuesday"></td>
-      <td class="seatCell" data-day="Wednesday"></td>
-      <td class="seatCell" data-day="Thursday"></td>
-      <td class="seatCell" data-day="Friday"></td>
-      <td class="seatCell" data-day="Saturday"></td>
-    </tr>
-    <tr data-shift="FLEX">
-      <td>FLEX</td>
-      <td class="seatCell" data-day="Sunday"></td>
-      <td class="seatCell" data-day="Monday"></td>
-      <td class="seatCell" data-day="Tuesday"></td>
-      <td class="seatCell" data-day="Wednesday"></td>
-      <td class="seatCell" data-day="Thursday"></td>
-      <td class="seatCell" data-day="Friday"></td>
-      <td class="seatCell" data-day="Saturday"></td>
-    </tr>
-    </tbody>
-  </table>
+    <!-- SHIFT SPREADSHEET (days as columns, shift codes as rows) -->
+    <h2>Seated Placements (Spreadsheet Layout)</h2>
+    <table id="shiftSpreadsheet">
+      <thead>
+        <tr>
+          <th>Shift / Day</th>
+          <th>Sunday</th>
+          <th>Monday</th>
+          <th>Tuesday</th>
+          <th>Wednesday</th>
+          <th>Thursday</th>
+          <th>Friday</th>
+          <th>Saturday</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr data-shift="FHD">
+          <td>FHD</td>
+          <td class="seatCell" data-day="Sunday"></td>
+          <td class="seatCell" data-day="Monday"></td>
+          <td class="seatCell" data-day="Tuesday"></td>
+          <td class="seatCell" data-day="Wednesday"></td>
+          <td class="seatCell" data-day="Thursday"></td>
+          <td class="seatCell" data-day="Friday"></td>
+          <td class="seatCell" data-day="Saturday"></td>
+        </tr>
+        <tr data-shift="FHN">
+          <td>FHN</td>
+          <td class="seatCell" data-day="Sunday"></td>
+          <td class="seatCell" data-day="Monday"></td>
+          <td class="seatCell" data-day="Tuesday"></td>
+          <td class="seatCell" data-day="Wednesday"></td>
+          <td class="seatCell" data-day="Thursday"></td>
+          <td class="seatCell" data-day="Friday"></td>
+          <td class="seatCell" data-day="Saturday"></td>
+        </tr>
+        <tr data-shift="BHD">
+          <td>BHD</td>
+          <td class="seatCell" data-day="Sunday"></td>
+          <td class="seatCell" data-day="Monday"></td>
+          <td class="seatCell" data-day="Tuesday"></td>
+          <td class="seatCell" data-day="Wednesday"></td>
+          <td class="seatCell" data-day="Thursday"></td>
+          <td class="seatCell" data-day="Friday"></td>
+          <td class="seatCell" data-day="Saturday"></td>
+        </tr>
+        <tr data-shift="BHN">
+          <td>BHN</td>
+          <td class="seatCell" data-day="Sunday"></td>
+          <td class="seatCell" data-day="Monday"></td>
+          <td class="seatCell" data-day="Tuesday"></td>
+          <td class="seatCell" data-day="Wednesday"></td>
+          <td class="seatCell" data-day="Thursday"></td>
+          <td class="seatCell" data-day="Friday"></td>
+          <td class="seatCell" data-day="Saturday"></td>
+        </tr>
+        <tr data-shift="FLEX">
+          <td>FLEX</td>
+          <td class="seatCell" data-day="Sunday"></td>
+          <td class="seatCell" data-day="Monday"></td>
+          <td class="seatCell" data-day="Tuesday"></td>
+          <td class="seatCell" data-day="Wednesday"></td>
+          <td class="seatCell" data-day="Thursday"></td>
+          <td class="seatCell" data-day="Friday"></td>
+          <td class="seatCell" data-day="Saturday"></td>
+        </tr>
+      </tbody>
+    </table>
 
-  <h2>All Accommodations</h2>
-  <table id="accommodationsTable">
-    <thead>
-    <tr>
-      <th>ID</th>
-      <th>Claim#</th>
-      <th>Assoc Login</th>
-      <th>Name</th>
-      <th>Shift Pattern</th>
-      <th>Shift Type</th>
-      <th>Job Path</th>
-      <th>Status</th>
-      <th>Action</th>
-    </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
+    <h2>All Accommodations</h2>
+    <table id="accommodationsTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Claim#</th>
+          <th>Assoc Login</th>
+          <th>Name</th>
+          <th>Shift Pattern</th>
+          <th>Shift Type</th>
+          <th>Accomm Role</th>
+          <th>Is Seated?</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
 <script>
-  async function loadSeatCounts() {
-    // fetch /api/seatCounts => { Sunday: { FHD: #, FHN: #, ...}, Monday: {...}, ... }
-    let resp = await fetch("/api/seatCounts");
-    let seatGrid = await resp.json();
-    // fill the table
-    // For each row (data-shift=FHD, etc.), for each cell (data-day=Sunday, etc.), seatGrid[day][shift]
-    document.querySelectorAll("#shiftSpreadsheet tbody tr").forEach(row => {
-      let shift = row.dataset.shift; // e.g. "FHD"
-      row.querySelectorAll(".seatCell").forEach(cell => {
-        let day = cell.dataset.day;  // e.g. "Sunday"
-        if (seatGrid[day] && seatGrid[day][shift] !== undefined) {
-          cell.textContent = seatGrid[day][shift];
-        } else {
-          cell.textContent = "0";
-        }
-      });
+async function loadSeatCounts() {
+  // GET /api/seatCounts => { day: { shiftCode: number }... }
+  let resp = await fetch("/api/seatCounts");
+  let seatGrid = await resp.json();
+
+  // Fill the spreadsheet
+  document.querySelectorAll("#shiftSpreadsheet tbody tr").forEach(row => {
+    let shift = row.dataset.shift; // e.g. "FHD"
+    row.querySelectorAll(".seatCell").forEach(cell => {
+      let day = cell.dataset.day;  // e.g. "Sunday"
+      let count = seatGrid[day][shift] || 0;
+      cell.textContent = count;
     });
-  }
+  });
+}
 
-  async function loadAccommodations() {
-    let res = await fetch("/api/accommodations");
-    let data = await res.json();
-    const tbody = document.querySelector("#accommodationsTable tbody");
-    tbody.innerHTML = "";
+async function loadAccommodations() {
+  let res = await fetch("/api/accommodations");
+  let data = await res.json();
+  const tbody = document.querySelector("#accommodationsTable tbody");
+  tbody.innerHTML = "";
 
-    data.forEach(ac => {
-      let tr = document.createElement("tr");
-      tr.innerHTML = `
+  data.forEach(ac => {
+    let tr = document.createElement("tr");
+    tr.dataset.id = ac.id;
+    tr.innerHTML = `
       <td>${ac.id}</td>
       <td>${ac.claimNumber || ""}</td>
       <td>${ac.associateLogin || ""}</td>
       <td>${ac.associateName || ""}</td>
       <td>${ac.shiftPattern || ""}</td>
       <td>${ac.shiftType || ""}</td>
+      <td>${ac.accommodationRole || ""}</td>
+      <td>${ac.isSeated ? "Yes" : "No"}</td>
+      <td>${ac.status || ""}</td>
       <td>
-        <select class="jobPathSelect">
-          ${makeJobPathOptions(ac.requestingJobPath)}
-        </select>
+        <button class="deleteBtn">Delete</button>
       </td>
-      <td>
-        <select class="statusSelect">
-          <option value="Pending" ${ac.status === "Pending" ? "selected" : ""}>Pending</option>
-          <option value="Approved" ${ac.status === "Approved" ? "selected" : ""}>Approved</option>
-          <option value="Expired" ${ac.status === "Expired" ? "selected" : ""}>Expired</option>
-        </select>
-      </td>
-      <td><button class="saveBtn">Save</button></td>
     `;
-      tr.dataset.id = ac.id;
-      tbody.appendChild(tr);
-    });
-  }
+    tbody.appendChild(tr);
+  });
+}
 
-  function makeJobPathOptions(selected) {
-    // All roles including TLD & non-TLD
-    let roles = [
-      "Asset tagging",
-      "Seated PA role",
-      "TLD SpartPac Resealing & Auditing",
-      "TLD Bin Straightening & pod banding",
-      "TLD Dock Temp Screener",
-      "IB Stow",
-      "IB Problem Solve",
-      "AA's Home Path",
-      "Provider Placed off Work",
-      "PLOA",
-      "DLS Referral",
-      "OB",
-      "Pick",
-      "OB Problem Solve",
-      "Pending updated restrictions"
-    ];
-    return roles.map(r => {
-      let sel = (r === selected) ? "selected" : "";
-      return `<option value="${r}" ${sel}>${r}</option>`;
-    }).join("");
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  loadSeatCounts();
+  loadAccommodations();
 
-  document.addEventListener("DOMContentLoaded", () => {
-    // Load seat counts
-    loadSeatCounts();
-    // Load accommodations
-    loadAccommodations();
+  // Delete with confirm
+  document.querySelector("#accommodationsTable").addEventListener("click", async (e) => {
+    if (!e.target.classList.contains("deleteBtn")) return;
+    let row = e.target.closest("tr");
+    let id = row.dataset.id;
 
-    // When user hits "Save" on a row, patch the DB, then reload seat counts + table
-    document.querySelector("#accommodationsTable").addEventListener("click", async (e) => {
-      if (!e.target.classList.contains("saveBtn")) return;
-      let row = e.target.closest("tr");
-      let id = row.dataset.id;
-      let jobPathSelect = row.querySelector(".jobPathSelect");
-      let statusSelect = row.querySelector(".statusSelect");
+    if (!confirm("Are you sure you want to delete this entry?")) {
+      return; // canceled
+    }
 
-      let newJobPath = jobPathSelect.value;
-      let newStatus = statusSelect.value;
-
-      let resp = await fetch(`/api/accommodations/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestingJobPath: newJobPath, status: newStatus })
-      });
-      let result = await resp.json();
-      if (!resp.ok) {
-        alert("Error: " + (result.error || "Unknown"));
-        return;
-      }
-      alert("Record updated. Recomputing seat counts...");
-      // reload seat counts + table
+    let resp = await fetch(`/api/accommodations/${id}`, { method: "DELETE" });
+    let result = await resp.json();
+    if (resp.ok) {
+      alert("Deleted successfully!");
       loadAccommodations();
       loadSeatCounts();
-    });
+    } else {
+      alert("Error: " + (result.error || "Unknown"));
+    }
   });
+});
 </script>
 </body>
 </html>
+
