@@ -28,7 +28,8 @@
       </select>
     </div>
 
-    <form id="updateForm">
+    <!-- IMPORTANT: enctype="multipart/form-data" for file upload -->
+    <form id="updateForm" enctype="multipart/form-data">
       <div id="newOnlyFields">
         <p><strong>Associate Name:</strong>
           <input type="text" name="associateName" class="form-input">
@@ -71,6 +72,11 @@
         <label><input type="radio" name="isSeated" value="no" checked> No</label>
       </p>
 
+      <!-- NEW: File Upload -->
+      <p><strong>Upload Supporting Document (Required):</strong><br>
+        <input type="file" name="supportingDocument" id="supportingDocument" required>
+      </p>
+
       <button type="submit" class="big-button">Save and send Slack message</button>
     </form>
   </div>
@@ -106,6 +112,7 @@ async function loadExistingClaims() {
   });
 }
 
+// On "No", user can pick existing. Then fetch data to fill form.
 existingClaimSelect.addEventListener("change", async () => {
   let val = existingClaimSelect.value;
   if (!val) return;
@@ -137,56 +144,31 @@ isNewYes.addEventListener("change", toggleFields);
 isNewNo.addEventListener("change", toggleFields);
 toggleFields();
 
+// Handle form submission with a file
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  let isNewValue = isNewYes.checked ? "yes" : "no";
 
-  let body = {
-    isNew: isNewValue,
-    requestorLogin: form.requestorLogin.value.trim(),
-    startDate: form.startDate.value,
-    endDate: form.endDate.value,
-    aaRestrictions: form.aaRestrictions.value,
-    accommodationRole: form.accommodationRole.value.trim(),
-    isSeated: document.querySelector('input[name="isSeated"]:checked').value
-  };
-
-  if (isNewValue === "yes") {
-    body.associateName = form.associateName.value.trim();
-    body.associateLogin = form.associateLogin.value.trim();
-    body.managerLogin = form.managerLogin.value.trim();
-    body.associateHomePath = form.associateHomePath.value.trim();
-    body.shiftPattern = form.shiftPattern.value.trim();
-    body.claimNumber = form.claimNumber.value.trim();
-  } else {
-    if (!existingClaimSelect.value) {
-      alert("Select an existing record if 'No' is chosen.");
-      return;
-    }
-    body.existingRecordId = existingClaimSelect.value;
-
-    // if you allow updating these fields even for existing
-    body.associateName = form.associateName.value.trim();
-    body.associateLogin = form.associateLogin.value.trim();
-    body.managerLogin = form.managerLogin.value.trim();
-    body.associateHomePath = form.associateHomePath.value.trim();
-    body.shiftPattern = form.shiftPattern.value.trim();
-    body.claimNumber = form.claimNumber.value.trim();
+  let fileInput = document.getElementById("supportingDocument");
+  if (!fileInput.files.length) {
+    alert("Please upload a supporting document.");
+    return;
   }
+
+  // Build FormData from the entire form
+  let formData = new FormData(form);
 
   try {
     let response = await fetch("/api/restrictions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      body: formData
     });
     let result = await response.json();
     if (response.ok) {
       alert(result.message || "Saved and Slack message sent!");
       form.reset();
-      toggleFields();
+      toggleFields(); // reset display if needed
     } else {
-      alert("Error: " + (result.error||"Unknown"));
+      alert("Error: " + (result.error || "Unknown"));
     }
   } catch (err) {
     alert("Fetch error: " + err.message);
