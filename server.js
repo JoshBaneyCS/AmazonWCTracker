@@ -1,16 +1,7 @@
-/*************************************************************
- * server.js
- * Key points:
- *  - We have an /api/seatCounts endpoint that calculates how many "Approved"
- *    seated roles exist for each day/shift code (FHD, FHN, BHD, BHN, FLEX).
- *  - We add logic to fetch an existing record for update and auto-fill.
- *  - Slack message format remains the same, ensuring it's sent after POST /api/restrictions.
- *************************************************************/
 require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
-
-// Using node-fetch@2 for CommonJS
+// For Node 18+ CommonJS, ensure node-fetch@2
 const fetch = require("node-fetch");
 const mysql = require("mysql2/promise");
 const path = require("path");
@@ -19,94 +10,74 @@ const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Serve static files from "public" directory
+// Serve static files from "public"
 app.use(express.static("public"));
 
-// By default, serve active-accommodations.html
+// If user visits "/", default to active-accommodations.html
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "active-accommodations.html"));
 });
 
 const dbConfig = {
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASS || "",
+  database: process.env.DB_NAME || "myaccommodationsdb"
 };
 
-// Slack Webhook
 const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL || "";
 
-/*************************************************************
- * SHIFT + DAY MAPPINGS
- * We'll map each shift code (FHD, FHN, etc.) to the days it covers.
- * For seat counts:
- *   FHD => Sunday, Monday, Tuesday, Wednesday
- *   FHN => Sunday night, Monday night, Tuesday night, Wednesday night
- *   BHD => Wednesday, Thursday, Friday, Saturday
- *   BHN => Wed night, Thu night, Fri night, Sat night
- *   FLEX => all days or "Flex only"? We'll treat it as its own row for the entire week
- *************************************************************/
+// SHIFT_DAYS to map each shift code => which days it covers
 const SHIFT_DAYS = {
-  FHD: ["Sunday", "Monday", "Tuesday", "Wednesday"],
-  FHN: ["Sunday", "Monday", "Tuesday", "Wednesday"], // but at night
-  BHD: ["Wednesday", "Thursday", "Friday", "Saturday"],
-  BHN: ["Wednesday", "Thursday", "Friday", "Saturday"], // night
-  FLEX: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+  FHD: ["Sunday","Monday","Tuesday","Wednesday"],
+  FHN: ["Sunday","Monday","Tuesday","Wednesday"], // nights
+  BHD: ["Wednesday","Thursday","Friday","Saturday"],
+  BHN: ["Wednesday","Thursday","Friday","Saturday"], // nights
+  FLEX: ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
 };
 
 /*************************************************************
- * parseShiftPattern => returns FHD, FHN, BHD, BHN, FLEX, or "unknown"
- * Extended logic for DA -> FHD, DB -> BHD, DC -> ???
- * NA -> FHN, NB -> BHN, RT -> BHD, RTN -> BHN, FLEX...
+ * parseShiftPattern(shiftString) => returns "FHD","FHN","BHD","BHN","FLEX","unknown"
  *************************************************************/
 function parseShiftPattern(shiftString) {
   if (!shiftString) return "unknown";
   const s = shiftString.toUpperCase();
-
   if (s.includes("DA")) return "FHD";
   if (s.includes("DB")) return "BHD";
-  if (s.includes("DC")) return "FHD"; // or "donut" if you'd prefer a special code
+  if (s.includes("DC")) return "FHD"; // or special if needed
   if (s.includes("NA")) return "FHN";
   if (s.includes("NB")) return "BHN";
   if (s.includes("RTN")) return "BHN";
-  if (s.includes("RT")) return "BHD";
-  if (s.includes("FLEX")) return "FLEX";
+  if (s.includes("RT"))  return "BHD";
+  if (s.includes("FLEX"))return "FLEX";
   return "unknown";
 }
 
 /*************************************************************
- * isSeatedRole => returns true if requestingJobPath is a TLD seated role
- *************************************************************/
-function isSeatedRole(role) {
-  const seatedRoles = ["Asset tagging", "Seated PA role"];
-  return seatedRoles.includes(role);
-}
-
-/*************************************************************
- * sendSlackMessage => format your message
+ * sendSlackMessage
+ *  - references "accommodationRole" as "Recommendation" in the text.
  *************************************************************/
 async function sendSlackMessage({
-                                  associateName,
-                                  associateLogin,
-                                  homePath,
-                                  aaRestrictions,
-                                  requestingJobPath,
-                                  requestorLogin,
-                                  shiftCount,   // e.g. "FHD"
-                                  seatedTotal   // numeric total
-                                }) {
+  associateName,
+  associateLogin,
+  homePath,
+  aaRestrictions,
+  accommodationRole,
+  requestorLogin,
+  shiftCount,  // e.g. "FHD"
+  seatedTotal
+}) {
   if (!slackWebhookUrl) {
-    console.warn("No Slack webhook configured. Message not sent.");
+    console.warn("Slack webhook not set. Not sending message.");
     return;
   }
   const text =
-      `We have received restrictions for ${associateName} (${associateLogin})
+`We have received restrictions for ${associateName} (${associateLogin})
 @channel
 
 Home Path: ${homePath}
 Restrictions: ${aaRestrictions}
-Recommendation: ${requestingJobPath}
+Recommendation: ${accommodationRole}
 
 This is an automated message sent out by: ${requestorLogin}
 
@@ -128,12 +99,13 @@ Total Seated accommodations: ${seatedTotal}`;
 }
 
 /*************************************************************
- * GET /api/accommodations => Return all records
+ * GET /api/accommodations
+ *  Return all rows
  *************************************************************/
 app.get("/api/accommodations", async (req, res) => {
   try {
     const conn = await mysql.createConnection(dbConfig);
-    const [rows] = await conn.execute("SELECT * FROM accommodations ORDER BY id DESC");
+    const [rows] = await conn.execute(`SELECT * FROM accommodations ORDER BY id DESC`);
     await conn.end();
     res.json(rows);
   } catch (err) {
@@ -142,13 +114,14 @@ app.get("/api/accommodations", async (req, res) => {
 });
 
 /*************************************************************
- * GET /api/accommodations/:id => Return a single record (for auto-fill)
+ * GET /api/accommodations/:id
+ *  Return a single row for editing
  *************************************************************/
 app.get("/api/accommodations/:id", async (req, res) => {
   try {
-    const id = req.params.id;
+    const { id } = req.params;
     const conn = await mysql.createConnection(dbConfig);
-    const [rows] = await conn.execute("SELECT * FROM accommodations WHERE id = ?", [id]);
+    const [rows] = await conn.execute(`SELECT * FROM accommodations WHERE id = ?`, [id]);
     await conn.end();
     if (rows.length === 0) return res.status(404).json({ error: "Not found" });
     res.json(rows[0]);
@@ -158,23 +131,16 @@ app.get("/api/accommodations/:id", async (req, res) => {
 });
 
 /*************************************************************
- * PATCH /api/accommodations/:id => update job path, status, etc.
- * After update, we won't send Slack but we can do so if you prefer
+ * DELETE /api/accommodations/:id
+ *  Removes a row from DB
  *************************************************************/
-app.patch("/api/accommodations/:id", async (req, res) => {
+app.delete("/api/accommodations/:id", async (req, res) => {
   try {
-    const id = req.params.id;
-    const { requestingJobPath, status } = req.body;
-
+    const { id } = req.params;
     const conn = await mysql.createConnection(dbConfig);
-    await conn.execute(`
-      UPDATE accommodations
-      SET requestingJobPath = ?,
-          status = ?
-      WHERE id = ?
-    `, [requestingJobPath, status, id]);
+    await conn.execute(`DELETE FROM accommodations WHERE id = ?`, [id]);
     await conn.end();
-    res.json({ message: "Record updated." });
+    res.json({ message: "Accommodation deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -182,11 +148,10 @@ app.patch("/api/accommodations/:id", async (req, res) => {
 
 /*************************************************************
  * POST /api/restrictions
- * - Insert or update a record
- * - Always site="BWI2"
- * - default status="Pending"
- * - parse shiftPattern -> shiftType
- * - send Slack
+ *  Insert or update an accommodation. Replaces old "requestingJobPath" with:
+ *    - accommodationRole (text)
+ *    - isSeated (yes/no => 1/0)
+ *  SHIFT counts rely on isSeated=1 & status='Approved'.
  *************************************************************/
 app.post("/api/restrictions", async (req, res) => {
   try {
@@ -197,94 +162,115 @@ app.post("/api/restrictions", async (req, res) => {
       managerLogin,
       associateHomePath,
       shiftPattern,
-      requestingJobPath,
       requestorLogin,
       startDate,
       endDate,
       aaRestrictions,
       claimNumber,
-      existingRecordId
+      existingRecordId,
+
+      accommodationRole,  // new
+      isSeated            // "yes" or "no"
     } = req.body;
 
     const conn = await mysql.createConnection(dbConfig);
 
-    let newOrUpdatedId;
-    let status = "Pending"; // default
-    let site = "BWI2";
+    const status = "Pending"; // default
+    const site = "BWI2";      // as example
+    // convert isSeated => 1/0
+    const isSeatedVal = (isSeated === "yes") ? 1 : 0;
+
+    let newId;
 
     if (isNew === "yes") {
+      // parse shiftType
       const shiftType = parseShiftPattern(shiftPattern);
-      // Insert new
-      const [result] = await conn.execute(`
+      const [inserted] = await conn.execute(`
         INSERT INTO accommodations
           (claimNumber, associateLogin, associateName, managerLogin, associateHomePath,
-           shiftPattern, shiftType, site, requestingJobPath, requestorLogin,
-           startDate, endDate, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           shiftPattern, shiftType, site,
+           startDate, endDate, status,
+           accommodationRole, isSeated
+          )
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
       `, [
         claimNumber, associateLogin, associateName, managerLogin, associateHomePath,
-        shiftPattern, shiftType, site, requestingJobPath, requestorLogin,
-        startDate, endDate, status
+        shiftPattern, shiftType, site,
+        startDate, endDate, status,
+        accommodationRole || "", isSeatedVal
       ]);
-      newOrUpdatedId = result.insertId;
+      newId = inserted.insertId;
     } else {
-      // Update existing
-      // We'll keep shiftPattern & shiftType from DB unless you want to allow changes
-      const [old] = await conn.execute("SELECT shiftPattern FROM accommodations WHERE id = ?", [existingRecordId]);
-      const oldPattern = old[0]?.shiftPattern || "";
-      const shiftType = parseShiftPattern(oldPattern);
+      // update existing
+      // fetch old shiftPattern if needed
+      const [rows] = await conn.execute(`SELECT shiftPattern FROM accommodations WHERE id=?`, [existingRecordId]);
+      let oldPattern = rows[0]?.shiftPattern || "";
+      let shiftType = parseShiftPattern(oldPattern);
 
       await conn.execute(`
         UPDATE accommodations
-        SET requestingJobPath = ?,
-            requestorLogin = ?,
+        SET claimNumber = ?,
+            associateLogin = ?,
+            associateName = ?,
+            managerLogin = ?,
+            associateHomePath = ?,
             startDate = ?,
             endDate = ?,
             status = ?,
-            site = ?
-        WHERE id = ?
+            site = ?,
+            accommodationRole = ?,
+            isSeated = ?
+        WHERE id=?
       `, [
-        requestingJobPath, requestorLogin, startDate, endDate, status, site,
+        claimNumber, associateLogin, associateName, managerLogin, associateHomePath,
+        startDate, endDate, status, site,
+        accommodationRole || "", isSeatedVal,
         existingRecordId
       ]);
-      newOrUpdatedId = existingRecordId;
+      newId = existingRecordId;
     }
 
-    // Re-fetch final record to get associateName, shiftPattern, etc.
-    const [finalData] = await conn.execute("SELECT * FROM accommodations WHERE id = ?", [newOrUpdatedId]);
-    const record = finalData[0];
+    // Re-fetch final data to pass to Slack message
+    const [finalRows] = await conn.execute(`SELECT * FROM accommodations WHERE id=?`, [newId]);
+    const rec = finalRows[0];
 
-    // SHIFT_COUNT: how many are Approved with same shiftType + TLD seated role
-    const [sc] = await conn.execute(`
-      SELECT COUNT(*) as shiftCount
+    // SHIFT_COUNT => how many "Approved" + isSeated=1 with same shiftType
+    // shiftType might come from parseShiftPattern(rec.shiftPattern)
+    let finalShiftType = parseShiftPattern(rec.shiftPattern);
+    // Count how many
+    const [scRows] = await conn.execute(`
+      SELECT COUNT(*) as seatCount
       FROM accommodations
-      WHERE shiftType = ?
-        AND status = 'Approved'
-        AND (requestingJobPath IN ('Asset tagging','Seated PA role'))
-    `, [record.shiftType]);
-    const shiftCount = record.shiftType; // e.g. "FHD" for message
-    const [st] = await conn.execute(`
-      SELECT COUNT(*) as seatedTotal
+      WHERE status='Approved'
+        AND isSeated=1
+        AND shiftType=?
+    `, [finalShiftType]);
+    let seatCountCode = finalShiftType; // pass code to Slack
+    const seatCount = scRows[0].seatCount;
+
+    // total seated across all shiftTypes
+    const [stRows] = await conn.execute(`
+      SELECT COUNT(*) as totalSeated
       FROM accommodations
-      WHERE status = 'Approved'
-        AND (requestingJobPath IN ('Asset tagging','Seated PA role'))
+      WHERE status='Approved'
+        AND isSeated=1
     `);
-    const seatedTotal = st[0].seatedTotal;
+    const totalSeated = stRows[0].totalSeated;
 
-    // Send Slack
+    // Slack message references "accommodationRole" in "Recommendation"
     await sendSlackMessage({
-      associateName: record.associateName,
-      associateLogin: record.associateLogin,
-      homePath: record.associateHomePath,
+      associateName: rec.associateName,
+      associateLogin: rec.associateLogin,
+      homePath: rec.associateHomePath,
       aaRestrictions,
-      requestingJobPath: record.requestingJobPath,
+      accommodationRole: rec.accommodationRole,
       requestorLogin,
-      shiftCount,
-      seatedTotal
+      shiftCount: seatCountCode, // e.g. "FHD"
+      seatedTotal: totalSeated
     });
 
     await conn.end();
-    res.json({ message: "Restrictions saved, Slack message sent.", newOrUpdatedId });
+    res.json({ message: "Restrictions saved, Slack message sent.", newOrUpdatedId: newId });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -293,20 +279,13 @@ app.post("/api/restrictions", async (req, res) => {
 
 /*************************************************************
  * GET /api/seatCounts
- *   Return a grid of [day][shiftCode] => seatCount
- *   We do this by:
- *    1) SELECT all Approved + TLD roles
- *    2) parse shiftPattern -> shiftType
- *    3) SHIFT_DAYS map which days that shift covers
- *    4) increment seatCounts in that day/shift
+ *  Return a day×shift code grid, counting rows with status='Approved' & isSeated=1
  *************************************************************/
 app.get("/api/seatCounts", async (req, res) => {
   try {
-    // Build day x shift code grid
     const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
     const shiftCodes = ["FHD","FHN","BHD","BHN","FLEX"];
-
-    // Initialize result
+    // build seatGrid
     let seatGrid = {};
     days.forEach(d => {
       seatGrid[d] = {};
@@ -316,29 +295,22 @@ app.get("/api/seatCounts", async (req, res) => {
     });
 
     const conn = await mysql.createConnection(dbConfig);
-    // fetch all "Approved" + TLD seated roles
+    // fetch all that are Approved + isSeated=1
     const [rows] = await conn.execute(`
-      SELECT shiftPattern, shiftType, requestingJobPath
+      SELECT shiftPattern, shiftType
       FROM accommodations
-      WHERE status = 'Approved'
-        AND (requestingJobPath IN ('Asset tagging','Seated PA role'))
+      WHERE status='Approved'
+        AND isSeated=1
     `);
     await conn.end();
 
-    // For each record, figure out shiftType => which days => increment seatGrid
-    for (let r of rows) {
-      let stype = r.shiftType;
-      // fallback if shiftType is blank, parse from shiftPattern
-      if (!stype || stype === "unknown") {
-        stype = parseShiftPattern(r.shiftPattern);
-      }
-      if (!SHIFT_DAYS[stype]) continue; // skip if not recognized
-
-      // SHIFT_DAYS[stype] => array of days
-      SHIFT_DAYS[stype].forEach(day => {
-        seatGrid[day][stype] += 1;
+    rows.forEach(r => {
+      let st = r.shiftType || parseShiftPattern(r.shiftPattern);
+      if (!SHIFT_DAYS[st]) return;
+      SHIFT_DAYS[st].forEach(day => {
+        seatGrid[day][st] += 1;
       });
-    }
+    });
     res.json(seatGrid);
   } catch (err) {
     res.status(500).json({ error: err.message });
