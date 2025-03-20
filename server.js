@@ -54,6 +54,8 @@ async function sendSlackMessage({
   associateName,
   associateLogin,
   homePath,
+  shiftPattern,
+  managerLogin,
   aaRestrictions,
   accommodationRole,
   requestorLogin,
@@ -65,24 +67,25 @@ async function sendSlackMessage({
     return;
   }
 
-  // Construct the correct payload
+  // Construct payload with only raw data variables (no pre-formatted message)
   const payload = {
-    text: `We have received restrictions for *${associateName}* (*${associateLogin}*)\n
-    <!channel>\n
-    *Home Path:* ${homePath}\n
-    *Restrictions:* ${aaRestrictions}\n
-    *Recommendation:* ${accommodationRole}\n
-    \n
-    _This is an automated message sent by: ${requestorLogin}_\n
-    \n
-    *Current seated spots for ${shiftCount}:* ${seatedTotal}`
+    associateName,
+    associateLogin,
+    homePath,
+    shiftPattern,
+    managerLogin,
+    aaRestrictions,
+    accommodationRole,
+    requestorLogin,
+    shiftCount,
+    seatedTotal
   };
 
   try {
     const response = await fetch(slackWebhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload) // Sends raw data to Slack
     });
 
     if (!response.ok) {
@@ -92,7 +95,6 @@ async function sendSlackMessage({
     console.error("Error sending Slack message:", err);
   }
 }
-
 // GET /api/accommodations
 app.get("/api/accommodations", async (req, res) => {
   try {
