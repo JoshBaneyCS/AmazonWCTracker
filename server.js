@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
-// If on Node 18+ (CommonJS), ensure node-fetch@2
+// For Node18+ + CommonJS, use node-fetch@2 so require() works:
 const fetch = require("node-fetch");
 const mysql = require("mysql2/promise");
 const path = require("path");
@@ -10,7 +10,6 @@ const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Serve static files from public/
 app.use(express.static("public"));
 
 app.get("/", (req, res) => {
@@ -26,7 +25,7 @@ const dbConfig = {
 
 const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL || "";
 
-// SHIFT LOGIC
+// SHIFT map
 const SHIFT_DAYS = {
   FHD: ["Sunday","Monday","Tuesday","Wednesday"],
   FHN: ["Sunday","Monday","Tuesday","Wednesday"], // nights
@@ -35,37 +34,37 @@ const SHIFT_DAYS = {
   FLEX: ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
 };
 
-function parseShiftPattern(shiftString) {
-  if (!shiftString) return "unknown";
-  const s = shiftString.toUpperCase();
-  if (s.includes("DA")) return "FHD";
-  if (s.includes("DB")) return "BHD";
-  if (s.includes("DC")) return "FHD"; // or special if needed
-  if (s.includes("NA")) return "FHN";
-  if (s.includes("NB")) return "BHN";
-  if (s.includes("RTN"))return "BHN";
-  if (s.includes("RT")) return "BHD";
-  if (s.includes("FLEX")) return "FLEX";
+/** parseShiftPattern => FHD, FHN, BHD, BHN, FLEX, unknown */
+function parseShiftPattern(s) {
+  if (!s) return "unknown";
+  let up = s.toUpperCase();
+  if (up.includes("DA")) return "FHD";
+  if (up.includes("DB")) return "BHD";
+  if (up.includes("DC")) return "FHD"; // or special
+  if (up.includes("NA")) return "FHN";
+  if (up.includes("NB")) return "BHN";
+  if (up.includes("RTN"))return "BHN";
+  if (up.includes("RT")) return "BHD";
+  if (up.includes("FLEX")) return "FLEX";
   return "unknown";
 }
 
-// Slack message
+/** sendSlackMessage - references accommodationRole as "Recommendation" */
 async function sendSlackMessage({
   associateName,
   associateLogin,
   homePath,
   aaRestrictions,
-  accommodationRole,  // new custom field
+  accommodationRole,
   requestorLogin,
-  shiftCount,
+  shiftCount,    // e.g. "FHD"
   seatedTotal
 }) {
   if (!slackWebhookUrl) {
     console.warn("No Slack webhook URL set. Not sending message.");
     return;
   }
-
-  const text = 
+  let text =
 `We have received restrictions for ${associateName} (${associateLogin})
 @channel
 
@@ -79,7 +78,7 @@ Current seated spots for ${shiftCount} :
 Total Seated accommodations: ${seatedTotal}`;
 
   try {
-    const resp = await fetch(slackWebhookUrl, {
+    let resp = await fetch(slackWebhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text })
@@ -92,11 +91,13 @@ Total Seated accommodations: ${seatedTotal}`;
   }
 }
 
-// GET all accommodations
+// GET /api/accommodations
 app.get("/api/accommodations", async (req, res) => {
   try {
     const conn = await mysql.createConnection(dbConfig);
-    const [rows] = await conn.execute(`SELECT * FROM accommodations ORDER BY id DESC`);
+    // We'll do a small date format fix in SQL or let front-end handle it
+    // but for simplicity, we just return raw data here
+    const [rows] = await conn.execute("SELECT * FROM accommodations ORDER BY id DESC");
     await conn.end();
     res.json(rows);
   } catch (err) {
@@ -109,7 +110,7 @@ app.get("/api/accommodations/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const conn = await mysql.createConnection(dbConfig);
-    const [rows] = await conn.execute(`SELECT * FROM accommodations WHERE id=?`, [id]);
+    const [rows] = await conn.execute("SELECT * FROM accommodations WHERE id=?", [id]);
     await conn.end();
     if (!rows.length) return res.status(404).json({ error: "Not found" });
     res.json(rows[0]);
@@ -118,12 +119,12 @@ app.get("/api/accommodations/:id", async (req, res) => {
   }
 });
 
-// DELETE single
+// DELETE
 app.delete("/api/accommodations/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const conn = await mysql.createConnection(dbConfig);
-    await conn.execute(`DELETE FROM accommodations WHERE id=?`, [id]);
+    await conn.execute("DELETE FROM accommodations WHERE id=?", [id]);
     await conn.end();
     res.json({ message: "Accommodation deleted successfully" });
   } catch (err) {
@@ -133,15 +134,13 @@ app.delete("/api/accommodations/:id", async (req, res) => {
 
 /**
  * PATCH /api/accommodations/:id
- * - Let user edit "accommodationRole" (text) and "status" from the main table.
- * - We'll store isSeated, start/end date as is, read-only from this page.
+ * - update accommodationRole + status from active-accommodations table
  */
 app.patch("/api/accommodations/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { accommodationRole, status } = req.body; // from user input
+    const { accommodationRole, status } = req.body;
     const conn = await mysql.createConnection(dbConfig);
-    // Update only the relevant fields
     await conn.execute(`
       UPDATE accommodations
       SET accommodationRole = ?,
@@ -155,47 +154,80 @@ app.patch("/api/accommodations/:id", async (req, res) => {
   }
 });
 
-// seatCounts: build day×shift code grid from Approved + isSeated=1
+/**
+ * GET /api/seatCounts
+ *  Returns:
+ *   {
+ *     dayGrid: { Sunday: {FHD: #, FHN: #, ...}, Monday: {...}, ... },
+ *     distinctCounts: { FHD: #, FHN: #, BHD: #, BHN: #, FLEX: # }
+ *   }
+ * For daily coverage, we add 1 to each day SHIFT_DAYS[shiftType].
+ * For distinct counts, we do a separate query grouped by shiftType
+ */
 app.get("/api/seatCounts", async (req, res) => {
   try {
     const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
     const shiftCodes = ["FHD","FHN","BHD","BHN","FLEX"];
-    let seatGrid = {};
+
+    // Build day grid
+    let dayGrid = {};
     days.forEach(d => {
-      seatGrid[d] = {};
+      dayGrid[d] = {};
       shiftCodes.forEach(sc => {
-        seatGrid[d][sc] = 0;
+        dayGrid[d][sc] = 0;
       });
     });
 
     const conn = await mysql.createConnection(dbConfig);
+    // 1) daily coverage
     const [rows] = await conn.execute(`
-      SELECT shiftPattern, shiftType 
+      SELECT shiftPattern, shiftType
       FROM accommodations
-      WHERE status='Approved' 
+      WHERE status='Approved'
         AND isSeated=1
     `);
-    await conn.end();
-
-    // Tally day by day
     rows.forEach(r => {
       let st = r.shiftType || parseShiftPattern(r.shiftPattern);
       if (!SHIFT_DAYS[st]) return;
       SHIFT_DAYS[st].forEach(day => {
-        seatGrid[day][st] += 1;
+        dayGrid[day][st] += 1; 
       });
     });
 
-    res.json(seatGrid);
+    // 2) distinct counts
+    //   how many distinct DB rows are Approved + isSeated=1 for each shift code
+    //   We'll parse shiftPattern if shiftType is blank
+    //   easiest is to do it in JS or do SHIFT_DAYS + group in memory
+    // For a straightforward approach:
+    const [approvedRows] = await conn.execute(`
+      SELECT shiftPattern, shiftType
+      FROM accommodations
+      WHERE status='Approved'
+        AND isSeated=1
+    `);
+    await conn.end();
+
+    // We'll count how many distinct rows for each shift code
+    let distinctCounts = { FHD:0, FHN:0, BHD:0, BHN:0, FLEX:0 };
+    approvedRows.forEach(r => {
+      let st = r.shiftType || parseShiftPattern(r.shiftPattern);
+      if (distinctCounts[st] !== undefined) {
+        distinctCounts[st] += 1;
+      }
+    });
+
+    // Return both in a combined object
+    res.json({
+      dayGrid, 
+      distinctCounts
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 /**
- * POST /api/restrictions
- *   Insert or update accommodation 
- *   (See previous code; user chooses isSeated, role, etc.)
+ * POST /api/restrictions => Insert or update
  */
 app.post("/api/restrictions", async (req, res) => {
   try {
@@ -218,7 +250,7 @@ app.post("/api/restrictions", async (req, res) => {
     } = req.body;
 
     const conn = await mysql.createConnection(dbConfig);
-    const status = "Pending"; 
+    const status = "Pending";
     const site = "BWI2";
     const isSeatedVal = (isSeated === "yes") ? 1 : 0;
     let newId;
@@ -242,7 +274,7 @@ app.post("/api/restrictions", async (req, res) => {
       newId = ins.insertId;
     } else {
       // update existing
-      let [old] = await conn.execute(`SELECT shiftPattern FROM accommodations WHERE id=?`, [existingRecordId]);
+      let [old] = await conn.execute("SELECT shiftPattern FROM accommodations WHERE id=?", [existingRecordId]);
       let oldPat = old[0]?.shiftPattern || "";
       let shiftType = parseShiftPattern(oldPat);
 
@@ -269,31 +301,33 @@ app.post("/api/restrictions", async (req, res) => {
       newId = existingRecordId;
     }
 
-    // fetch final row => slack
-    let [finalRow] = await conn.execute(`SELECT * FROM accommodations WHERE id=?`, [newId]);
+    // fetch final
+    let [finalRow] = await conn.execute("SELECT * FROM accommodations WHERE id=?", [newId]);
     let rec = finalRow[0];
-
-    // seat count logic
+    // seat count for that shift
     let finalShiftType = parseShiftPattern(rec.shiftPattern);
-    let [sc] = await conn.execute(`
+    // how many for that shift
+    let [s1] = await conn.execute(`
       SELECT COUNT(*) as seatCount
       FROM accommodations
       WHERE status='Approved'
         AND isSeated=1
         AND shiftType=?
     `, [finalShiftType]);
-
     let shiftCount = finalShiftType;
-    let seatCount = sc[0].seatCount;
-
-    let [st] = await conn.execute(`
+    let seatCount = s1[0].seatCount;
+    // total seated
+    let [s2] = await conn.execute(`
       SELECT COUNT(*) as totalSeated
       FROM accommodations
       WHERE status='Approved'
         AND isSeated=1
     `);
-    let totalSeated = st[0].totalSeated;
+    let totalSeated = s2[0].totalSeated;
 
+    await conn.end();
+
+    // Slack
     await sendSlackMessage({
       associateName: rec.associateName,
       associateLogin: rec.associateLogin,
@@ -305,7 +339,6 @@ app.post("/api/restrictions", async (req, res) => {
       seatedTotal: totalSeated
     });
 
-    await conn.end();
     res.json({ message: "Restrictions saved, Slack message sent.", newOrUpdatedId: newId });
   } catch (err) {
     console.error(err);
@@ -313,7 +346,7 @@ app.post("/api/restrictions", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT||3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
