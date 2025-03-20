@@ -1,10 +1,17 @@
 require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
-// For Node18+ + CommonJS, use node-fetch@2 so require() works:
-const fetch = require("node-fetch");
+const fetch = require("node-fetch"); // node-fetch@2 for CommonJS
 const mysql = require("mysql2/promise");
 const path = require("path");
+
+// 1. Install & require these for file uploads + sending to Slack
+const multer = require("multer");
+const FormData = require("form-data");
+const axios = require("axios");
+
+// 2. Use memory storage so we don't store the file on disk
+const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
 app.use(bodyParser.json());
@@ -16,6 +23,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "active-accommodations.html"));
 });
 
+// Database config
 const dbConfig = {
   host: process.env.DB_HOST || "localhost",
   user: process.env.DB_USER || "root",
@@ -23,7 +31,10 @@ const dbConfig = {
   database: process.env.DB_NAME || "myaccommodationsdb"
 };
 
+// Slack config
 const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL || "";
+const slackBotToken = process.env.SLACK_BOT_TOKEN || "";
+const slackChannelId = process.env.SLACK_CHANNEL_ID || "";
 
 // SHIFT map
 const SHIFT_DAYS = {
@@ -34,22 +45,22 @@ const SHIFT_DAYS = {
   FLEX: ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
 };
 
-/** parseShiftPattern => FHD, FHN, BHD, BHN, FLEX, unknown */
+// parseShiftPattern => FHD, FHN, BHD, BHN, FLEX, unknown
 function parseShiftPattern(s) {
   if (!s) return "unknown";
   let up = s.toUpperCase();
   if (up.includes("DA")) return "FHD";
   if (up.includes("DB")) return "BHD";
-  if (up.includes("DC")) return "FHD"; // or special
+  if (up.includes("DC")) return "FHD"; 
   if (up.includes("NA")) return "FHN";
   if (up.includes("NB")) return "BHN";
   if (up.includes("RTN"))return "BHN";
-  if (up.includes("RT")) return "BHD";
-  if (up.includes("FLEX")) return "FLEX";
+  if (up.includes("RT"))  return "BHD";
+  if (up.includes("FLEX"))return "FLEX";
   return "unknown";
 }
 
-/** sendSlackMessage - references accommodationRole as "Recommendation" */
+// Only raw data is sent to Slack
 async function sendSlackMessage({
   associateName,
   associateLogin,
@@ -67,7 +78,7 @@ async function sendSlackMessage({
     return;
   }
 
-  // Construct payload with only raw data variables (no pre-formatted message)
+  // We are only sending the raw data for Slack's own formatting
   const payload = {
     associateName,
     associateLogin,
@@ -85,7 +96,7 @@ async function sendSlackMessage({
     const response = await fetch(slackWebhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload) // Sends raw data to Slack
+      body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
@@ -95,12 +106,11 @@ async function sendSlackMessage({
     console.error("Error sending Slack message:", err);
   }
 }
+
 // GET /api/accommodations
 app.get("/api/accommodations", async (req, res) => {
   try {
     const conn = await mysql.createConnection(dbConfig);
-    // We'll do a small date format fix in SQL or let front-end handle it
-    // but for simplicity, we just return raw data here
     const [rows] = await conn.execute("SELECT * FROM accommodations ORDER BY id DESC");
     await conn.end();
     res.json(rows);
@@ -109,7 +119,7 @@ app.get("/api/accommodations", async (req, res) => {
   }
 });
 
-// GET single
+// GET /api/accommodations/:id
 app.get("/api/accommodations/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -123,7 +133,7 @@ app.get("/api/accommodations/:id", async (req, res) => {
   }
 });
 
-// DELETE
+// DELETE /api/accommodations/:id
 app.delete("/api/accommodations/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -136,10 +146,7 @@ app.delete("/api/accommodations/:id", async (req, res) => {
   }
 });
 
-/**
- * PATCH /api/accommodations/:id
- * - update accommodationRole + status from active-accommodations table
- */
+// PATCH /api/accommodations/:id (update accommodationRole + status)
 app.patch("/api/accommodations/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -160,20 +167,16 @@ app.patch("/api/accommodations/:id", async (req, res) => {
 
 /**
  * GET /api/seatCounts
- *  Returns:
- *   {
- *     dayGrid: { Sunday: {FHD: #, FHN: #, ...}, Monday: {...}, ... },
- *     distinctCounts: { FHD: #, FHN: #, BHD: #, BHN: #, FLEX: # }
- *   }
- * For daily coverage, we add 1 to each day SHIFT_DAYS[shiftType].
- * For distinct counts, we do a separate query grouped by shiftType
+ * Returns { dayGrid, distinctCounts }
+ * dayGrid => daily coverage
+ * distinctCounts => how many distinct rows are Approved + isSeated=1
  */
 app.get("/api/seatCounts", async (req, res) => {
   try {
     const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
     const shiftCodes = ["FHD","FHN","BHD","BHN","FLEX"];
 
-    // Build day grid
+    // Build day coverage
     let dayGrid = {};
     days.forEach(d => {
       dayGrid[d] = {};
@@ -183,7 +186,7 @@ app.get("/api/seatCounts", async (req, res) => {
     });
 
     const conn = await mysql.createConnection(dbConfig);
-    // 1) daily coverage
+    // daily coverage for each row
     const [rows] = await conn.execute(`
       SELECT shiftPattern, shiftType
       FROM accommodations
@@ -194,15 +197,11 @@ app.get("/api/seatCounts", async (req, res) => {
       let st = r.shiftType || parseShiftPattern(r.shiftPattern);
       if (!SHIFT_DAYS[st]) return;
       SHIFT_DAYS[st].forEach(day => {
-        dayGrid[day][st] += 1; 
+        dayGrid[day][st] += 1;
       });
     });
 
-    // 2) distinct counts
-    //   how many distinct DB rows are Approved + isSeated=1 for each shift code
-    //   We'll parse shiftPattern if shiftType is blank
-    //   easiest is to do it in JS or do SHIFT_DAYS + group in memory
-    // For a straightforward approach:
+    // distinct counts
     const [approvedRows] = await conn.execute(`
       SELECT shiftPattern, shiftType
       FROM accommodations
@@ -211,7 +210,6 @@ app.get("/api/seatCounts", async (req, res) => {
     `);
     await conn.end();
 
-    // We'll count how many distinct rows for each shift code
     let distinctCounts = { FHD:0, FHN:0, BHD:0, BHN:0, FLEX:0 };
     approvedRows.forEach(r => {
       let st = r.shiftType || parseShiftPattern(r.shiftPattern);
@@ -220,20 +218,14 @@ app.get("/api/seatCounts", async (req, res) => {
       }
     });
 
-    // Return both in a combined object
-    res.json({
-      dayGrid, 
-      distinctCounts
-    });
+    res.json({ dayGrid, distinctCounts });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-/**
- * POST /api/restrictions => Insert or update
- */
-app.post("/api/restrictions", async (req, res) => {
+// 3. The main difference: memory file upload + Slack file
+app.post("/api/restrictions", upload.single("supportingDocument"), async (req, res) => {
   try {
     const {
       isNew,
@@ -248,16 +240,21 @@ app.post("/api/restrictions", async (req, res) => {
       aaRestrictions,
       claimNumber,
       existingRecordId,
-
       accommodationRole,
       isSeated
     } = req.body;
 
-    const conn = await mysql.createConnection(dbConfig);
-    const status = "Pending";
-    const site = "BWI2";
+    if (!req.file) {
+      return res.status(400).json({ error: "File upload is required." });
+    }
+
     const isSeatedVal = (isSeated === "yes") ? 1 : 0;
+    const site = "BWI2";
+    const status = "Pending";
     let newId;
+
+    // Connect to DB
+    const conn = await mysql.createConnection(dbConfig);
 
     if (isNew === "yes") {
       let shiftType = parseShiftPattern(shiftPattern);
@@ -266,8 +263,7 @@ app.post("/api/restrictions", async (req, res) => {
           (claimNumber, associateLogin, associateName, managerLogin, associateHomePath,
            shiftPattern, shiftType, site,
            startDate, endDate, status,
-           accommodationRole, isSeated
-          )
+           accommodationRole, isSeated)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
       `, [
         claimNumber, associateLogin, associateName, managerLogin, associateHomePath,
@@ -284,17 +280,9 @@ app.post("/api/restrictions", async (req, res) => {
 
       await conn.execute(`
         UPDATE accommodations
-        SET claimNumber=?,
-            associateLogin=?,
-            associateName=?,
-            managerLogin=?,
-            associateHomePath=?,
-            startDate=?,
-            endDate=?,
-            status=?,
-            site=?,
-            accommodationRole=?,
-            isSeated=?
+        SET claimNumber=?, associateLogin=?, associateName=?, managerLogin=?,
+            associateHomePath=?, startDate=?, endDate=?, status=?, site=?,
+            accommodationRole=?, isSeated=?
         WHERE id=?
       `, [
         claimNumber, associateLogin, associateName, managerLogin, associateHomePath,
@@ -305,12 +293,38 @@ app.post("/api/restrictions", async (req, res) => {
       newId = existingRecordId;
     }
 
-    // fetch final
+    // Slack: first upload the file to Slack using Slack's "files.upload"
+    if (!slackBotToken) {
+      console.warn("No Slack Bot Token set (SLACK_BOT_TOKEN). Can't upload file.");
+    } else {
+      // Build formData for Slack file upload
+      const formData = new FormData();
+      formData.append("file", req.file.buffer, req.file.originalname);
+      formData.append("channels", slackChannelId);
+      formData.append("filename", req.file.originalname);
+      formData.append("initial_comment", "Supporting Document Uploaded");
+
+      try {
+        const fileResp = await axios.post("https://slack.com/api/files.upload", formData, {
+          headers: {
+            ...formData.getHeaders(),
+            Authorization: `Bearer ${slackBotToken}`
+          }
+        });
+        if (!fileResp.data.ok) {
+          console.error("Slack File Upload Error:", fileResp.data);
+        }
+      } catch (err) {
+        console.error("Error uploading file to Slack:", err);
+      }
+    }
+
+    // Now send your raw data approach to Slack
     let [finalRow] = await conn.execute("SELECT * FROM accommodations WHERE id=?", [newId]);
     let rec = finalRow[0];
-    // seat count for that shift
+
+    // seat counting
     let finalShiftType = parseShiftPattern(rec.shiftPattern);
-    // how many for that shift
     let [s1] = await conn.execute(`
       SELECT COUNT(*) as seatCount
       FROM accommodations
@@ -318,9 +332,8 @@ app.post("/api/restrictions", async (req, res) => {
         AND isSeated=1
         AND shiftType=?
     `, [finalShiftType]);
-    let shiftCount = finalShiftType;
     let seatCount = s1[0].seatCount;
-    // total seated
+
     let [s2] = await conn.execute(`
       SELECT COUNT(*) as totalSeated
       FROM accommodations
@@ -331,25 +344,28 @@ app.post("/api/restrictions", async (req, res) => {
 
     await conn.end();
 
-    // Slack
+    // Slack raw data
     await sendSlackMessage({
       associateName: rec.associateName,
       associateLogin: rec.associateLogin,
       homePath: rec.associateHomePath,
+      shiftPattern: rec.shiftPattern,
+      managerLogin: rec.managerLogin,
       aaRestrictions,
       accommodationRole: rec.accommodationRole,
       requestorLogin,
-      shiftCount,
+      shiftCount: finalShiftType,
       seatedTotal: totalSeated
     });
 
-    res.json({ message: "Restrictions saved, Slack message sent.", newOrUpdatedId: newId });
+    res.json({ message: "Restrictions saved, file sent to Slack." });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
+// Listen
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
