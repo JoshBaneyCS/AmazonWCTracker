@@ -275,17 +275,24 @@ app.post("/api/restrictions", upload.single("supportingDocument"), async (req, r
     const site = "BWI2";
     const status = "Pending";
 
-    // Upload file to S3
+       // Upload file to S3
     const s3Params = {
       Bucket: process.env.AWS_S3_BUCKET,
       Key: Date.now() + "_" + req.file.originalname,
       Body: req.file.buffer,
       ContentType: req.file.mimetype,
-      ACL: 'public-read'
+      // ACL is omitted because your bucket blocks ACLs
     };
     const s3Result = await s3.upload(s3Params).promise();
-    const fileUrl = s3Result.Location;
-
+    
+    // Generate a pre-signed URL that expires in 4 days (345600 seconds)
+    const fileUrl = s3.getSignedUrl('getObject', {
+      Bucket: process.env.AWS_S3_BUCKET,
+      Key: s3Params.Key,
+      Expires: 345600
+    });
+    
+    // Use fileUrl for your Slack payload
     const conn = await mysql.createConnection(dbConfig);
     let newId;
 
