@@ -76,7 +76,20 @@ function parseShiftPattern(s) {
   if (up.includes("FLEX")) return "FLEX";
   return "unknown";
 }
-
+cron.schedule('0 0 * * *', async () => {
+  try {
+    const conn = await mysql.createConnection(dbConfig);
+    await conn.execute(`
+      UPDATE accommodations
+      SET status = 'Pending updated Restrictions'
+      WHERE endDate < CURDATE() AND status != 'Pending updated Restrictions'
+    `);
+    await conn.end();
+    console.log("Automatically updated restrictions status for expired records.");
+  } catch (err) {
+    console.error("Error updating restrictions status:", err);
+  }
+});
 /**
  * sendSlackMessage: Sends raw data to Slack.
  * The payload includes fields such as associateName, homePath, shiftPattern, etc.
